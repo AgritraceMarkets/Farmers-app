@@ -1,12 +1,12 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import Dashboard from "./pages/Dashboard";
-import Farmers from "./pages/Farmers";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
-import PlantRequest from "./pages/PlantRequest";
-import TrackProgress from "./pages/TrackProgress";
+import Dashboard from "./src/Dashboard";
+import Farmers from "./src/Farmers";
+import Register from "./src/Register";
+import Login from "./src/Login";
+import PlantRequest from "./src/PlantRequest";
+import TrackProgress from "./src/TrackProgress";
 
 
 function App() {
