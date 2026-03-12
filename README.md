@@ -1,16 +1,43 @@
-# React + Vite
+# AgriTrace Market - Farmer Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive farmer dashboard for the agricultural marketplace that connects buyers directly with farmers for future harvests.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🌾 Farmer Authentication
+- Secure login and registration system
+- Personalized farmer profiles
 
-## React Compiler
+### 🌱 Crop Management
+- Register crops with detailed information
+- Select from various crop types (maize, rice, wheat, tomatoes, potatoes, coffee, soybeans)
+- Input land size and location for accurate yield calculations
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📊 Yield Prediction
+- Automatic yield calculation based on:
+  - Crop type
+  - Land size (acres)
+  - Historical yield data per crop
+- Real-time yield preview during registration
 
-## Expanding the ESLint configuration
+### 📅 Growth Calendar Generator
+- Day-by-day growth tracking
+- Stage-based growth monitoring:
+  - Germination
+  - Vegetative growth
+  - Flowering/Fruiting
+  - Maturity
+- Daily task recommendations
+- Visual timeline of crop development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository
+```bash
+git clone [repository-url]
