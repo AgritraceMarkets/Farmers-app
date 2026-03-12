@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-
+import cropImages from './cropImages';
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [user, setUser] = useState(null);
   const [crops, setCrops] = useState([]);
   const [newCrop, setNewCrop] = useState({
@@ -11,7 +12,8 @@ const App = () => {
     plantingDate: '',
     landSize: '',
     location: '',
-    cropType: ''
+    cropType: '',
+    customName: ''
   });
   const [loginData, setLoginData] = useState({
     email: '',
@@ -22,34 +24,108 @@ const App = () => {
     email: '',
     password: '',
     farmName: '',
-    phone: ''
+    phone: '',
+    region: ''
   });
 
-  // Crop types with their growth days and expected yield per acre
+  // Updated crop types with Swahili names and accurate data
   const cropTypes = {
-    maize: { name: 'Maize', growthDays: 120, yieldPerAcre: 1800, unit: 'kg' },
-    rice: { name: 'Rice', growthDays: 150, yieldPerAcre: 1200, unit: 'kg' },
-    wheat: { name: 'Wheat', growthDays: 110, yieldPerAcre: 1500, unit: 'kg' },
-    tomatoes: { name: 'Tomatoes', growthDays: 75, yieldPerAcre: 8000, unit: 'kg' },
-    potatoes: { name: 'Potatoes', growthDays: 90, yieldPerAcre: 10000, unit: 'kg' },
-    coffee: { name: 'Coffee', growthDays: 240, yieldPerAcre: 800, unit: 'kg' },
-    soybeans: { name: 'Soybeans', growthDays: 100, yieldPerAcre: 1200, unit: 'kg' }
+    coriander: { 
+      name: 'Coriander', 
+      swahili: 'Dhania',
+      growthDays: 45, 
+      yieldPerAcre: 800, 
+      unit: 'kg',
+      season: "All year",
+      image: cropImages.coriander,
+      description: 'Fast-growing herb used in cooking'
+    },
+    maize: { 
+      name: 'Maize', 
+      swahili: 'Mahindi',
+      growthDays: 120, 
+      yieldPerAcre: 2500, 
+      unit: 'kg',
+      season: 'Rainy season',
+      image: cropImages.maize,
+      description: 'Staple food'
+    },
+    lettuce: { 
+      name: 'Lettuce',
+      swahili: 'Saladi', 
+      growthDays: 60, 
+      yieldPerAcre: 4000, 
+      unit: 'kg',
+      season: 'All year)',
+      image: cropImages.lettuce,
+      description: 'Leafy vegetable for salads'
+    },
+    rice: { 
+      name: 'Rice', 
+      swahili: 'Mchele',
+      growthDays: 150, 
+      yieldPerAcre: 1800, 
+      unit: 'kg',
+      season: 'Heavy rainy season',
+      image: cropImages.rice,
+      description: 'Paddy rice'
+    },
+    cabbage: { 
+      name: 'Cabbage',
+      swahili: 'kabeji', 
+      growthDays: 90, 
+      yieldPerAcre: 6000, 
+      unit: 'kg',
+      season: 'Dry season',
+      image: cropImages.cabbage,
+      description: 'Leafy cabbage'
+    },
+    kale: { 
+      name: 'Kale', 
+      swahili: 'Sukumawiki',
+      growthDays: 55, 
+      yieldPerAcre: 3500, 
+      unit: 'kg',
+      season: 'All year',
+      image: cropImages.kale,
+      description: 'Popular vegetable'
+    },
+    beans: { 
+      name: 'Beans', 
+      swahili: 'Maharage',
+      growthDays: 95, 
+      yieldPerAcre: 800, 
+      unit: 'kg',
+      season: 'Rainy season',
+      image: cropImages.beans,
+      description: 'Legumes used in many dishes'
+    }
   };
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // Mock login - in real app, this would validate against backend
     if (loginData.email && loginData.password) {
-      setUser({ email: loginData.email, name: 'Demo Farmer' });
+      setUser({ 
+        email: loginData.email, 
+        name: 'Juma', 
+        farmName: 'Shamba la Ustawi',
+        region: 'Mlolongo, Machakos',
+        memberSince: '2024'
+      });
       setIsLoggedIn(true);
     }
   };
 
   const handleRegister = (e) => {
     e.preventDefault();
-    // Mock registration
     if (registerData.email && registerData.password) {
-      setUser({ email: registerData.email, name: registerData.name });
+      setUser({ 
+        email: registerData.email, 
+        name: registerData.name,
+        farmName: registerData.farmName,
+        region: registerData.region,
+        memberSince: new Date().getFullYear()
+      });
       setIsLoggedIn(true);
     }
   };
@@ -58,10 +134,8 @@ const App = () => {
     e.preventDefault();
     const selectedCrop = cropTypes[newCrop.cropType];
     
-    // Calculate expected yield
     const expectedYield = selectedCrop.yieldPerAcre * parseFloat(newCrop.landSize);
     
-    // Generate growth calendar
     const calendar = generateGrowthCalendar(
       newCrop.plantingDate, 
       selectedCrop.growthDays,
@@ -71,19 +145,24 @@ const App = () => {
     const cropEntry = {
       ...newCrop,
       id: Date.now(),
+      cropName: selectedCrop.name,
+      swahiliName: selectedCrop.swahili,
       expectedYield: expectedYield.toFixed(2),
       unit: selectedCrop.unit,
       growthDays: selectedCrop.growthDays,
-      calendar: calendar
+      calendar: calendar,
+      image: selectedCrop.image,
+      registrationDate: new Date().toLocaleDateString()
     };
 
-    setCrops([...crops, cropEntry]);
+    setCrops([cropEntry, ...crops]);
     setNewCrop({
       name: '',
       plantingDate: '',
       landSize: '',
       location: '',
-      cropType: ''
+      cropType: '',
+      customName: ''
     });
   };
 
@@ -96,8 +175,7 @@ const App = () => {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + day - 1);
       
-      // Determine growth stage
-      let stage = 'Growing';
+      let stage = ' Germination';
       for (const [stageName, stageDays] of Object.entries(stages)) {
         if (day <= stageDays) {
           stage = stageName;
@@ -107,34 +185,36 @@ const App = () => {
 
       calendar.push({
         day,
-        date: currentDate.toLocaleDateString(),
+        date: currentDate.toLocaleDateString('en-GB'),
         stage,
-        tasks: getDailyTasks(cropType, day, stage)
-      });
+        tasks: getDailyTasks(cropType, day, stage),
+        });
     }
     return calendar;
   };
 
   const getGrowthStages = (cropType) => {
     const stages = {
-      maize: { 'Germination': 10, 'Vegetative': 50, 'Tasseling': 20, 'Silking': 15, 'Maturity': 25 },
-      tomatoes: { 'Germination': 10, 'Seedling': 15, 'Vegetative': 20, 'Flowering': 15, 'Fruiting': 15 },
-      potatoes: { 'Sprouting': 15, 'Vegetative': 30, 'Tuber Initiation': 20, 'Tuber Bulking': 25 },
-      default: { 'Early': 30, 'Mid': 40, 'Late': 30 }
+      coriander: { 'Germination': 7, 'Growth': 20, 'Harvesting': 18 },
+      maize: { 'Germination': 10, 'Growth': 50, 'Flowering': 20, 'Head formation': 20, 'Maturity': 20 },
+      lettuce: { 'Germination': 8, 'Growth': 30, 'Harvesting': 22 },
+      rice: { 'Germination': 15, 'Growth': 60, 'Flowering': 30, 'Maturity': 45 },
+      cabbage: { 'Germination': 10, 'Growth': 45, 'Drying': 20, 'Harvesting': 15 },
+      kale: { 'Germination': 7, 'Growth': 30, 'Harvesting': 18 },
+      beans: { 'Germination': 8, 'Growth': 35, 'Flowering': 20, 'Pod formation': 20, 'Maturity': 12 }
     };
-    return stages[cropType] || stages.default;
+    return stages[cropType] || { 'Germination': 10, 'Growth': 30, 'Harvesting': 20 };
   };
 
   const getDailyTasks = (cropType, day, stage) => {
     const tasks = {
-      'Germination': 'Check soil moisture, protect from pests',
-      'Vegetative': 'Apply fertilizer, ensure adequate water',
-      'Flowering': 'Monitor pollination, maintain irrigation',
-      'Fruiting': 'Support plants, check for diseases',
+      'Germination': 'Water regularly, protect from birds',
+      'Growth': 'Apply fertilizer, weed control',
+      'Flowering': 'Monitor pollination, ensure irrigation',
+      'Head formation': 'Support plants, check for pests',
       'Maturity': 'Prepare for harvest, monitor ripeness',
-      'Early': 'Regular watering, weed control',
-      'Mid': 'Fertilizer application, pest monitoring',
-      'Late': 'Harvest preparation, quality checks'
+      'Drying': 'Ensure proper spacing, water consistently',
+      'Harvesting': 'Harvest carefully, prepare for market'
     };
     return tasks[stage] || 'Regular monitoring and care';
   };
@@ -143,11 +223,28 @@ const App = () => {
     setter(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUser(null);
+    setCrops([]);
+  };
+
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-GB', options);
+  };
+
   if (!isLoggedIn) {
     return (
+    <div className="app-background">
       <div className="auth-container">
+        <div className="auth-overlay"></div>
         <div className="auth-card">
-          <h1>🌱 AgriTrace Market</h1>
+          <div className="auth-header">
+            <h1>🌾 AgriTrace Market</h1>
+            <p>Soko la Wakulima - Connecting Farmers to Buyers</p>
+          </div>
+          
           <div className="auth-tabs">
             <button 
               className={activeTab === 'login' ? 'active' : ''} 
@@ -165,71 +262,112 @@ const App = () => {
 
           {activeTab === 'login' ? (
             <form onSubmit={handleLogin} className="auth-form">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={loginData.email}
-                onChange={handleInputChange(setLoginData)}
-                required
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={loginData.password}
-                onChange={handleInputChange(setLoginData)}
-                required
-              />
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="juma@shamba.com"
+                  value={loginData.email}
+                  onChange={handleInputChange(setLoginData)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={loginData.password}
+                  onChange={handleInputChange(setLoginData)}
+                  required
+                />
+              </div>
               <button type="submit" className="btn-primary">Login</button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="auth-form">
-              <input
-                type="text"
-                name="name"
-                placeholder="Full Name"
-                value={registerData.name}
-                onChange={handleInputChange(setRegisterData)}
-                required
-              />
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={registerData.email}
-                onChange={handleInputChange(setRegisterData)}
-                required
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={registerData.password}
-                onChange={handleInputChange(setRegisterData)}
-                required
-              />
-              <input
-                type="text"
-                name="farmName"
-                placeholder="Farm Name"
-                value={registerData.farmName}
-                onChange={handleInputChange(setRegisterData)}
-                required
-              />
-              <input
-                type="tel"
-                name="phone"
-                placeholder="Phone Number"
-                value={registerData.phone}
-                onChange={handleInputChange(setRegisterData)}
-                required
-              />
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Juma Omary"
+                  value={registerData.name}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="juma@shamba.com"
+                  value={registerData.email}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={registerData.password}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Farm Name</label>
+                <input
+                  type="text"
+                  name="farmName"
+                  placeholder="Shamba la Ustawi"
+                  value={registerData.farmName}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Region</label>
+                <select
+                  name="region"
+                  value={registerData.region}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                >
+                  <option value="">Select Region</option>
+                  <option value="">Mlolongo</option>
+                  <option value="Laikipia">Laikipia</option>
+                  <option value="Meru">Meru</option>
+                  <option value="Njoro">Njoro</option>
+                  <option value="Molo">Molo</option>
+                  <option value="Voi">Voi</option>
+                  <option value="Bondo">Bondo</option>
+                  <option value="Matayos">Matayos</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="0712 345 678"
+                  value={registerData.phone}
+                  onChange={handleInputChange(setRegisterData)}
+                  required
+                />
+              </div>
               <button type="submit" className="btn-primary">Register</button>
             </form>
           )}
         </div>
       </div>
+    </div>
     );
   }
 
@@ -237,71 +375,139 @@ const App = () => {
     <div className="app">
       <nav className="navbar">
         <div className="nav-brand">
-          <h2>🌱 AgriTrace Market</h2>
+          <h2>🌾 AgriTrace Market</h2>
+          <span className="farm-name">{user?.farmName}</span>
         </div>
-        <div className="nav-menu">
+        
+        <div className="profile-section">
           <button 
-            className={activeTab === 'dashboard' ? 'active' : ''}
-            onClick={() => setActiveTab('dashboard')}
+            className="profile-btn"
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
           >
-            Dashboard
+            <div className="profile-avatar">
+              {user?.name?.charAt(0)}
+            </div>
+            <span className="profile-name">{user?.name}</span>
           </button>
-          <button 
-            className={activeTab === 'register-crop' ? 'active' : ''}
-            onClick={() => setActiveTab('register-crop')}
-          >
-            Register Crop
-          </button>
-          <button 
-            className={activeTab === 'calendar' ? 'active' : ''}
-            onClick={() => setActiveTab('calendar')}
-          >
-            Growth Calendar
-          </button>
-          <button className="logout" onClick={() => setIsLoggedIn(false)}>
-            Logout
-          </button>
+          
+          {showProfileMenu && (
+            <div className="profile-menu">
+              <div className="profile-info">
+                <p><strong>{user?.name}</strong></p>
+                <p>{user?.farmName}</p>
+                <p>Region: {user?.region}</p>
+                <p>Member since: {user?.memberSince}</p>
+              </div>
+              <div className="profile-actions">
+                <button onClick={() => {
+                  setActiveTab('dashboard');
+                  setShowProfileMenu(false);
+                }}>📊 Dashboard</button>
+                <button onClick={() => {
+                  setActiveTab('register-crop');
+                  setShowProfileMenu(false);
+                }}>🌱 Crop Registration</button>
+                <button onClick={() => {
+                  setActiveTab('calendar');
+                  setShowProfileMenu(false);
+                }}>📅 Growth Calendar</button>
+                <button onClick={handleLogout} className="logout-btn">🚪 Logout</button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       <main className="main-content">
         {activeTab === 'dashboard' && (
           <div className="dashboard">
-            <h1>Welcome back, {user?.name}! 👨‍🌾</h1>
+            <div className="welcome-banner">
+              <div className="welcome-content">
+                <h1>Karibu tena, {user?.name}! 👨‍🌾</h1>
+                <p>Shamba lako la {user?.farmName}, {user?.region}</p>
+              </div>
+              <div className="welcome-actions">
+                <button onClick={() => setActiveTab('register-crop')} className="btn-primary">
+                  + New Crop registration
+                </button>
+              </div>
+            </div>
             
             <div className="stats-grid">
               <div className="stat-card">
-                <h3>Active Crops</h3>
-                <p className="stat-value">{crops.length}</p>
+                <div className="stat-icon">🌱</div>
+                <div className="stat-content">
+                  <h3>Active Crops</h3>
+                  <p className="stat-value">{crops.length}</p>
+                </div>
               </div>
               <div className="stat-card">
-                <h3>Total Land</h3>
-                <p className="stat-value">
-                  {crops.reduce((acc, crop) => acc + parseFloat(crop.landSize), 0).toFixed(1)} acres
-                </p>
+                <div className="stat-icon">📏</div>
+                <div className="stat-content">
+                  <h3>Total Land</h3>
+                  <p className="stat-value">
+                    {crops.reduce((acc, crop) => acc + parseFloat(crop.landSize), 0).toFixed(1)} Acres
+                  </p>
+                </div>
               </div>
               <div className="stat-card">
-                <h3>Expected Yield</h3>
-                <p className="stat-value">
-                  {crops.reduce((acc, crop) => acc + parseFloat(crop.expectedYield), 0).toFixed(0)} kg
-                </p>
+                <div className="stat-icon">📊</div>
+                <div className="stat-content">
+                  <h3>Yield Expectation</h3>
+                  <p className="stat-value">
+                    {crops.reduce((acc, crop) => acc + parseFloat(crop.expectedYield), 0).toFixed(0)} kg
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="crops-list">
+            <div className="recent-activity">
               <h2>Your Crops</h2>
               {crops.length === 0 ? (
-                <p className="no-data">No crops registered yet. Register your first crop!</p>
+                <div className="empty-state">
+                  <img src="/image/Farm.jpeg" alt="Farm" />
+                  <p>You haven't registered any crop yet. Register your first crop!</p>
+                  <button onClick={() => setActiveTab('register-crop')} className="btn-primary">
+                    + Crop Registration
+                  </button>
+                </div>
               ) : (
                 <div className="crop-cards">
                   {crops.map(crop => (
                     <div key={crop.id} className="crop-card">
-                      <h3>{cropTypes[crop.cropType]?.name || crop.name}</h3>
-                      <p>📍 Location: {crop.location}</p>
-                      <p>📏 Land Size: {crop.landSize} acres</p>
-                      <p>📅 Planted: {new Date(crop.plantingDate).toLocaleDateString()}</p>
-                      <p>📊 Expected Yield: {crop.expectedYield} {crop.unit}</p>
-                      <p>📈 Growth Days: {crop.growthDays} days</p>
+                      <div className="crop-image">
+                        <img src={crop.image} alt={crop.cropName} />
+                        <span className="crop-badge">{crop.swahiliName}</span>
+                      </div>
+                      <div className="crop-details">
+                        <h3>{crop.cropName}</h3>
+                        <p className="crop-location">📍 {crop.location}, {user?.region}</p>
+                        <div className="crop-stats">
+                          <div className="stat-item">
+                            <span className="stat-label">Acre:</span>
+                            <span className="stat-value">{crop.landSize}</span>
+                          </div>
+                          <div className="stat-item">
+                            <span className="stat-label">Harvest:</span>
+                            <span className="stat-value">{crop.expectedYield} {crop.unit}</span>
+                          </div>
+                          <div className="stat-item">
+                            <span className="stat-label">Planted:</span>
+                            <span className="stat-value">{formatDate(crop.plantingDate)}</span>
+                          </div>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ 
+                              width: `${Math.min(100, (new Date() - new Date(crop.plantingDate)) / (crop.growthDays * 24 * 60 * 60 * 1000) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <p className="growth-status">
+                          {Math.min(100, Math.round((new Date() - new Date(crop.plantingDate)) / (crop.growthDays * 24 * 60 * 60 * 1000) * 100))}% Grown
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -312,98 +518,144 @@ const App = () => {
 
         {activeTab === 'register-crop' && (
           <div className="register-crop">
-            <h1>Register New Crop</h1>
+            <h1>New Crop Registration</h1>
+            <p className="subtitle">Register a new crop for your farm</p>
             <form onSubmit={handleCropSubmit} className="crop-form">
-              <div className="form-group">
-                <label>Crop Type:</label>
-                <select
-                  name="cropType"
-                  value={newCrop.cropType}
-                  onChange={handleInputChange(setNewCrop)}
-                  required
-                >
-                  <option value="">Select a crop</option>
-                  {Object.entries(cropTypes).map(([key, crop]) => (
-                    <option key={key} value={key}>{crop.name}</option>
-                  ))}
-                </select>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Crop Type:</label>
+                  <select
+                    name="cropType"
+                    value={newCrop.cropType}
+                    onChange={handleInputChange(setNewCrop)}
+                    required
+                  >
+                    <option value="">Select</option>
+                    {Object.entries(cropTypes).map(([key, crop]) => (
+                      <option key={key} value={key}>
+                        {crop.name} - {crop.swahili}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Planting Date:</label>
+                  <input
+                    type="date"
+                    name="plantingDate"
+                    value={newCrop.plantingDate}
+                    onChange={handleInputChange(setNewCrop)}
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Planting Date:</label>
-                <input
-                  type="date"
-                  name="plantingDate"
-                  value={newCrop.plantingDate}
-                  onChange={handleInputChange(setNewCrop)}
-                  required
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Land Size (Acres):</label>
+                  <input
+                    type="number"
+                    name="landSize"
+                    step="0.1"
+                    min="0.1"
+                    value={newCrop.landSize}
+                    onChange={handleInputChange(setNewCrop)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Location:</label>
+                  <input
+                    type="text"
+                    name="location"
+                    placeholder="Area"
+                    value={newCrop.location}
+                    onChange={handleInputChange(setNewCrop)}
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Land Size (acres):</label>
-                <input
-                  type="number"
-                  name="landSize"
-                  step="0.1"
-                  min="0.1"
-                  value={newCrop.landSize}
-                  onChange={handleInputChange(setNewCrop)}
-                  required
-                />
-              </div>
+              {newCrop.cropType && (
+                <div className="crop-preview">
+                  <div className="preview-header">
+                    <h3>Yield Preview</h3>
+                  </div>
+                  <div className="preview-content">
+                    <img 
+                      src={cropTypes[newCrop.cropType].image} 
+                      alt={cropTypes[newCrop.cropType].name}
+                      className="preview-image"
+                    />
+                    <div className="preview-details">
+                      <h4>{cropTypes[newCrop.cropType].name} ({cropTypes[newCrop.cropType].swahili})</h4>
+                      <p>{cropTypes[newCrop.cropType].description}</p>
+                      <p><strong>Season:</strong> {cropTypes[newCrop.cropType].season}</p>
+                      <p><strong>Growth days:</strong> {cropTypes[newCrop.cropType].growthDays} days</p>
+                      <p><strong>Yield Estimation:</strong> 
+                        <span className="highlight">
+                          {(cropTypes[newCrop.cropType].yieldPerAcre * parseFloat(newCrop.landSize || 0)).toFixed(2)} 
+                          {cropTypes[newCrop.cropType].unit}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="form-group">
-                <label>Location:</label>
-                <input
-                  type="text"
-                  name="location"
-                  placeholder="Farm location"
-                  value={newCrop.location}
-                  onChange={handleInputChange(setNewCrop)}
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn-primary">Register Crop</button>
+              <button type="submit" className="btn-primary btn-large">
+                Save Crop
+              </button>
             </form>
-
-            {newCrop.cropType && newCrop.landSize && (
-              <div className="yield-preview">
-                <h3>Expected Yield Preview</h3>
-                <p>
-                  Based on your inputs, you can expect approximately{' '}
-                  <strong>
-                    {(cropTypes[newCrop.cropType].yieldPerAcre * parseFloat(newCrop.landSize || 0)).toFixed(2)} 
-                    {cropTypes[newCrop.cropType].unit}
-                  </strong>{' '}
-                  of {cropTypes[newCrop.cropType].name}
-                </p>
-              </div>
-            )}
           </div>
         )}
 
         {activeTab === 'calendar' && (
           <div className="growth-calendar">
             <h1>Growth Calendar</h1>
+            <p className="subtitle">Growth calendar and daily tasks</p>
+            
             {crops.length === 0 ? (
-              <p className="no-data">Register a crop to see its growth calendar</p>
+              <div className="empty-state">
+                <img src="/image/growth.jpeg" alt="Calendar" />
+                <p>Register a crop to see its growth calendar</p>
+                <button onClick={() => setActiveTab('register-crop')} className="btn-primary">
+                  + Crop Registration
+                </button>
+              </div>
             ) : (
               <div className="calendar-container">
                 {crops.map(crop => (
-                  <div key={crop.id} className="crop-calendar">
-                    <h2>{cropTypes[crop.cropType]?.name} - Growth Timeline</h2>
+                  <div key={crop.id} className="crop-calendar-card">
+                    <div className="calendar-header">
+                      <img src={crop.image} alt={crop.cropName} className="calendar-crop-image" />
+                      <div className="calendar-title">
+                        <h2>{crop.cropName} ({crop.swahiliName})</h2>
+                        <p>Planted: {formatDate(crop.plantingDate)}</p>
+                        <p>Location: {crop.location}</p>
+                      </div>
+                    </div>
+                    
                     <div className="timeline">
-                      {crop.calendar.filter((_, index) => index % 10 === 0).map(day => (
-                        <div key={day.day} className="timeline-day">
-                          <div className="day-marker">
-                            <span className="day-number">Day {day.day}</span>
-                            <span className="day-stage">{day.stage}</span>
+                      <h3>Daily Schedule</h3>
+                      <div className="timeline-grid">
+                        {crop.calendar.filter((_, index) => index % 5 === 0 || index === crop.calendar.length - 1).map(day => (
+                          <div key={day.day} className="timeline-card">
+                            <div className="timeline-day-header">
+                              <span className="day-number">Day {day.day}</span>
+                              <span className="day-date">{day.date}</span>
+                            </div>
+                            <div className="timeline-stage">
+                              <span className="stage-badge">{day.stage}</span>
+                            </div>
+                            <div className="timeline-tasks">
+                              <p className="task-english">{day.tasks}</p>
+                            </div>
                           </div>
-                          <p className="day-task">{day.tasks}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
