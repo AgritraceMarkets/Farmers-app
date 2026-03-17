@@ -3,6 +3,18 @@ import './App.css';
 import api from './services/api';
 import authService from './services/auth';
 import LoadingSpinner from './components/LoadingSpinner';
+import ForgotPasswordModal from './components/ForgotPasswordModal';
+import { 
+  validateEmail, 
+  validatePhone, 
+  validatePassword,
+  validateName,
+  validateLandSize,
+  validatePlantingDate,
+  validateRequired,
+  getErrorMessage,
+  formatPhoneNumber
+} from './utils/validation';
 
 // Google Maps API Key - Replace with your own
 const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
@@ -19,6 +31,11 @@ const App = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [selectedCrop, setSelectedCrop] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
 
   // Data state
   const [cropTypes, setCropTypes] = useState([]);
@@ -80,6 +97,84 @@ const App = () => {
     }
   }, [isLoggedIn]);
 
+  // Validation functions
+  const validateRegistrationField = (name, value) => {
+    switch (name) {
+      case 'full_name':
+        if (!validateRequired(value)) return 'required';
+        if (!validateName(value)) return 'invalid';
+        break;
+      case 'email':
+        if (!validateRequired(value)) return 'required';
+        if (!validateEmail(value)) return 'invalid';
+        break;
+      case 'phone_number':
+        if (!validateRequired(value)) return 'required';
+        if (!validatePhone(value)) return 'invalid';
+        break;
+      case 'password':
+        if (!validateRequired(value)) return 'required';
+        if (!validatePassword(value)) return 'weak';
+        break;
+      default:
+        return null;
+    }
+    return null;
+  };
+
+  const validatePlantingField = (name, value, allValues = {}) => {
+    switch (name) {
+      case 'crop_id':
+        if (!validateRequired(value)) return 'required';
+        break;
+      case 'land_size_acres':
+        if (!validateRequired(value)) return 'required';
+        if (!validateLandSize(value)) return 'invalid';
+        break;
+      case 'planting_date':
+        if (!validateRequired(value)) return 'required';
+        if (!validatePlantingDate(value)) return 'invalid';
+        break;
+      case 'latitude':
+        if (!value && !allValues.latitude) return 'required';
+        break;
+      default:
+        return null;
+    }
+    return null;
+  };
+
+  const handleBlur = (field, value, formType = 'register') => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+    
+    let error = null;
+    if (formType === 'register') {
+      error = validateRegistrationField(field, value);
+    } else if (formType === 'planting') {
+      error = validatePlantingField(field, value, newPlanting);
+    }
+    
+    if (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: getErrorMessage(
+          field === 'full_name' ? 'name' : 
+          field === 'phone_number' ? 'phone' : 
+          field === 'land_size_acres' ? 'landSize' :
+          field === 'planting_date' ? 'plantingDate' :
+          field === 'crop_id' ? 'cropType' : field,
+          error
+        )
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
   const initializeMap = () => {
     if (mapRef.current && window.google) {
       const map = new window.google.maps.Map(mapRef.current, {
@@ -117,7 +212,6 @@ const App = () => {
         updateLocation(newLocation, map);
       });
 
-      // Initialize autocomplete
       const input = document.getElementById('location-search');
       if (input) {
         const autocomplete = new window.google.maps.places.Autocomplete(input);
@@ -153,7 +247,6 @@ const App = () => {
       map.setCenter(newLocation);
     }
 
-    // Reverse geocode to get address
     if (window.google) {
       const geocoder = new window.google.maps.Geocoder();
       geocoder.geocode({ location: newLocation }, (results, status) => {
@@ -164,7 +257,6 @@ const App = () => {
     }
   };
 
-  // Fetch initial data after login
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -217,7 +309,6 @@ const App = () => {
     }
   };
 
-  // Auth handlers
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -242,6 +333,27 @@ const App = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submission
+    const errors = {};
+    Object.keys(registerData).forEach(key => {
+      if (key !== 'role') {
+        const error = validateRegistrationField(key, registerData[key]);
+        if (error) {
+          errors[key] = getErrorMessage(
+            key === 'full_name' ? 'name' : 
+            key === 'phone_number' ? 'phone' : key,
+            error
+          );
+        }
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -273,21 +385,72 @@ const App = () => {
     setShowPanel(false);
   };
 
-  // Planting handlers
+  // ===== UPDATED FUNCTION: handlePlantingSubmit =====
   const handlePlantingSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submission
+    const errors = {};
+    Object.keys(newPlanting).forEach(key => {
+      if (key !== 'notes' && key !== 'region_name' && key !== 'latitude' && key !== 'longitude') {
+        const error = validatePlantingField(key, newPlanting[key], newPlanting);
+        if (error) {
+          errors[key] = getErrorMessage(
+            key === 'land_size_acres' ? 'landSize' : 
+            key === 'planting_date' ? 'plantingDate' :
+            key === 'crop_id' ? 'cropType' : key,
+            error
+          );
+        }
+      }
+    });
+
+    // Check if location is provided (either through map or manual)
+    const useManual = document.getElementById('useManualLocation')?.checked;
+    
+    if (useManual) {
+      // Validate manual location
+      if (!newPlanting.region_name && !address) {
+        errors.location = 'Please enter your farm location';
+      }
+    } else {
+      // Validate map location
+      if (!address && !newPlanting.latitude) {
+        errors.location = 'Please select a location on the map or switch to manual entry';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       const plantingData = {
-        ...newPlanting,
-        land_size_acres: parseFloat(newPlanting.land_size_acres)
+        crop_id: parseInt(newPlanting.crop_id),
+        land_size_acres: parseFloat(newPlanting.land_size_acres),
+        planting_date: newPlanting.planting_date,
+        notes: newPlanting.notes || ''
       };
+
+      // Add location data based on which method was used
+      if (useManual) {
+        plantingData.region_name = newPlanting.region_name || address;
+        if (newPlanting.latitude && newPlanting.longitude) {
+          plantingData.latitude = parseFloat(newPlanting.latitude);
+          plantingData.longitude = parseFloat(newPlanting.longitude);
+        }
+      } else {
+        plantingData.latitude = location.lat;
+        plantingData.longitude = location.lng;
+        plantingData.region_name = address || 'Location selected on map';
+      }
 
       const response = await api.farmer.savePlanting(plantingData);
       
-      // Refresh plantings list
       await fetchMyPlantings();
       
       // Reset form
@@ -301,6 +464,18 @@ const App = () => {
         notes: ''
       });
       setAddress('');
+      setValidationErrors({});
+      setTouchedFields({});
+      
+      // Reset location toggle to map view
+      const manualSection = document.getElementById('manual-location-section');
+      const mapSection = document.getElementById('map-location-section');
+      if (manualSection && mapSection) {
+        manualSection.style.display = 'none';
+        mapSection.style.display = 'block';
+        const checkbox = document.getElementById('useManualLocation');
+        if (checkbox) checkbox.checked = false;
+      }
       
       setShowPanel(false);
       setActivePanel('profile');
@@ -337,7 +512,6 @@ const App = () => {
     }
   };
 
-  // UI helpers
   const togglePanel = (panelName) => {
     setActivePanel(panelName);
     setShowPanel(true);
@@ -345,6 +519,8 @@ const App = () => {
 
   const closePanel = () => {
     setShowPanel(false);
+    setValidationErrors({});
+    setTouchedFields({});
   };
 
   const formatDate = (dateString) => {
@@ -355,18 +531,15 @@ const App = () => {
     });
   };
 
-  // Loading state for auth
   if (loading && !isLoggedIn) {
     return <LoadingSpinner message="Loading..." />;
   }
 
-  // Auth screen
   if (!isLoggedIn) {
     return (
       <div className="auth-container">
         <div className="auth-background"></div>
         
-        {/* Error display */}
         {error && (
           <div className="error-banner">
             <i className="fas fa-exclamation-circle"></i>
@@ -420,6 +593,18 @@ const App = () => {
                   disabled={loading}
                 />
               </div>
+              
+              <div className="forgot-password-link">
+                <button 
+                  type="button"
+                  className="link-btn"
+                  onClick={() => setShowForgotPassword(true)}
+                  disabled={loading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              
               <button 
                 type="submit" 
                 className="btn-primary btn-block"
@@ -437,10 +622,16 @@ const App = () => {
                   placeholder="John Doe"
                   value={registerData.full_name}
                   onChange={(e) => setRegisterData({...registerData, full_name: e.target.value})}
+                  onBlur={(e) => handleBlur('full_name', e.target.value, 'register')}
+                  className={touchedFields.full_name && validationErrors.full_name ? 'error' : ''}
                   required
                   disabled={loading}
                 />
+                {touchedFields.full_name && validationErrors.full_name && (
+                  <span className="error-text">{validationErrors.full_name}</span>
+                )}
               </div>
+              
               <div className="form-group">
                 <label><i className="fas fa-envelope"></i> Email</label>
                 <input
@@ -448,21 +639,39 @@ const App = () => {
                   placeholder="john@example.com"
                   value={registerData.email}
                   onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
+                  onBlur={(e) => handleBlur('email', e.target.value, 'register')}
+                  className={touchedFields.email && validationErrors.email ? 'error' : ''}
                   required
                   disabled={loading}
                 />
+                {touchedFields.email && validationErrors.email && (
+                  <span className="error-text">{validationErrors.email}</span>
+                )}
               </div>
+              
               <div className="form-group">
                 <label><i className="fas fa-phone"></i> Phone Number</label>
                 <input
                   type="tel"
                   placeholder="0712345678"
                   value={registerData.phone_number}
-                  onChange={(e) => setRegisterData({...registerData, phone_number: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setRegisterData({...registerData, phone_number: value});
+                  }}
+                  onBlur={(e) => handleBlur('phone_number', e.target.value, 'register')}
+                  className={touchedFields.phone_number && validationErrors.phone_number ? 'error' : ''}
                   required
                   disabled={loading}
+                  maxLength="12"
                 />
+                {touchedFields.phone_number && validationErrors.phone_number ? (
+                  <span className="error-text">{validationErrors.phone_number}</span>
+                ) : registerData.phone_number && validatePhone(registerData.phone_number) && (
+                  <span className="hint-text">Formatted: {formatPhoneNumber(registerData.phone_number)}</span>
+                )}
               </div>
+              
               <div className="form-group">
                 <label><i className="fas fa-lock"></i> Password</label>
                 <input
@@ -470,28 +679,56 @@ const App = () => {
                   placeholder="••••••••"
                   value={registerData.password}
                   onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+                  onBlur={(e) => handleBlur('password', e.target.value, 'register')}
+                  className={touchedFields.password && validationErrors.password ? 'error' : ''}
                   required
                   disabled={loading}
+                  minLength="6"
                 />
+                {touchedFields.password && validationErrors.password ? (
+                  <span className="error-text">{validationErrors.password}</span>
+                ) : registerData.password && (
+                  <div className="password-strength">
+                    <div 
+                      className="strength-bar"
+                      style={{ 
+                        width: `${(registerData.password.length / 12) * 100}%`,
+                        backgroundColor: registerData.password.length < 6 ? '#d32f2f' : 
+                                       registerData.password.length < 8 ? '#f57c00' : '#388e3c'
+                      }}
+                    ></div>
+                    <span className="strength-text">
+                      {registerData.password.length < 6 ? 'Too short' : 
+                       registerData.password.length < 8 ? 'Good' : 'Strong'}
+                    </span>
+                  </div>
+                )}
               </div>
+              
               <button 
                 type="submit" 
                 className="btn-primary btn-block"
-                disabled={loading}
+                disabled={loading || Object.keys(validationErrors).length > 0}
               >
                 {loading ? 'Registering...' : 'Register'}
               </button>
             </form>
           )}
         </div>
+
+        <ForgotPasswordModal 
+          isOpen={showForgotPassword}
+          onClose={() => {
+            setShowForgotPassword(false);
+            setError(null);
+          }}
+        />
       </div>
     );
   }
 
-  // Main dashboard for logged in users
   return (
     <div className="app">
-      {/* Error Toast */}
       {error && (
         <div className="error-toast">
           <p>{error}</p>
@@ -499,7 +736,6 @@ const App = () => {
         </div>
       )}
 
-      {/* Header */}
       <header className="main-header">
         <div className="header-content">
           <h1>🌾 AgriTrace Market</h1>
@@ -523,13 +759,11 @@ const App = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="main-content">
         {loading ? (
           <LoadingSpinner message="Loading your farm data..." />
         ) : (
           <div className="dashboard animate-fadeIn">
-            {/* Welcome Section */}
             <div className="welcome-section">
               <div className="welcome-text">
                 <h2>Welcome back, {user?.full_name}! 👨‍🌾</h2>
@@ -537,7 +771,6 @@ const App = () => {
               </div>
             </div>
 
-            {/* Dashboard Summary Stats */}
             {dashboardSummary && (
               <div className="stats-grid">
                 <div className="stat-card">
@@ -564,7 +797,6 @@ const App = () => {
               </div>
             )}
 
-            {/* Upcoming Events */}
             {dashboardSummary?.upcoming_events?.length > 0 && (
               <div className="upcoming-events">
                 <h3>Upcoming Events (Next 7 Days)</h3>
@@ -588,12 +820,10 @@ const App = () => {
               </div>
             )}
 
-            {/* Recent Plantings */}
             <div className="recent-plantings">
               <h3>Your Plantings</h3>
               {plantings.length === 0 ? (
                 <div className="empty-state">
-                  {/* REPLACE THIS IMAGE: /images/empty-plantings.jpg */}
                   <img src="/images/empty-plantings.jpg" alt="No plantings" />
                   <p>You haven't registered any plantings yet</p>
                   <button className="btn-primary" onClick={() => togglePanel('register')}>
@@ -604,7 +834,6 @@ const App = () => {
                 <div className="plantings-grid">
                   {plantings.map(planting => (
                     <div key={planting.id} className="planting-card">
-                      {/* REPLACE THIS IMAGE: Find crop image from cropTypes or use default */}
                       <img 
                         src={cropTypes.find(c => c.id === planting.crop_id)?.image_url || '/images/crops/default.jpg'} 
                         alt={planting.crop_name}
@@ -645,7 +874,6 @@ const App = () => {
               )}
             </div>
 
-            {/* Marketplace Listings Preview */}
             {marketplaceListings.length > 0 && (
               <div className="marketplace-preview">
                 <h3>Your Marketplace Listings</h3>
@@ -654,7 +882,7 @@ const App = () => {
                     <div key={listing.id} className="listing-preview-card">
                       <h4>{listing.crop_name}</h4>
                       <p>{listing.available_quantity_kg} kg available</p>
-                      <p className="listing-price">TSh {listing.price_per_kg}/kg</p>
+                      <p className="listing-price">kSh {listing.price_per_kg}/kg</p>
                       <span className={`status-badge status-${listing.listing_status?.toLowerCase()}`}>
                         {listing.listing_status}
                       </span>
@@ -667,7 +895,6 @@ const App = () => {
         )}
       </main>
 
-      {/* Sliding Panel */}
       <div className={`sliding-panel ${showPanel ? 'open' : ''}`}>
         <div className="panel-header">
           <h2>
@@ -682,11 +909,9 @@ const App = () => {
         </div>
 
         <div className="panel-content">
-          {/* Profile Panel */}
           {activePanel === 'profile' && user && (
             <div className="profile-panel">
               <div className="profile-header">
-                {/* REPLACE THIS IMAGE: Use user avatar or default */}
                 <img 
                   src={`https://ui-avatars.com/api/?name=${user.full_name}&background=2e7d32&color=fff`} 
                   alt={user.full_name}
@@ -708,7 +933,7 @@ const App = () => {
             </div>
           )}
 
-          {/* Register Planting Panel */}
+          {/* ===== UPDATED: Register Planting Panel with Both Location Options ===== */}
           {activePanel === 'register' && (
             <div className="register-panel">
               <form onSubmit={handlePlantingSubmit}>
@@ -717,6 +942,8 @@ const App = () => {
                   <select
                     value={newPlanting.crop_id}
                     onChange={(e) => setNewPlanting({...newPlanting, crop_id: e.target.value})}
+                    onBlur={(e) => handleBlur('crop_id', e.target.value, 'planting')}
+                    className={touchedFields.crop_id && validationErrors.crop_id ? 'error' : ''}
                     required
                     disabled={loading}
                   >
@@ -727,12 +954,13 @@ const App = () => {
                       </option>
                     ))}
                   </select>
+                  {touchedFields.crop_id && validationErrors.crop_id && (
+                    <span className="error-text">{validationErrors.crop_id}</span>
+                  )}
                 </div>
 
-                {/* Crop Preview when selected */}
                 {newPlanting.crop_id && (
                   <div className="crop-preview">
-                    {/* REPLACE THIS IMAGE: Use crop.image_url */}
                     <img 
                       src={cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.image_url || '/images/crops/default.jpg'}
                       alt="Crop preview"
@@ -741,7 +969,7 @@ const App = () => {
                       <h4>{cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.crop_name}</h4>
                       <p>Maturity: {cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.total_maturity_days} days</p>
                       <p>Baseline Yield: {cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.baseline_yield_per_acre} kg/acre</p>
-                      <p>Price: TSh {cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.price_per_kg}/kg</p>
+                      <p>Price: kSh {cropTypes.find(c => c.id === parseInt(newPlanting.crop_id))?.price_per_kg}/kg</p>
                     </div>
                   </div>
                 )}
@@ -752,11 +980,17 @@ const App = () => {
                     type="number"
                     step="0.1"
                     min="0.1"
+                    max="1000"
                     value={newPlanting.land_size_acres}
                     onChange={(e) => setNewPlanting({...newPlanting, land_size_acres: e.target.value})}
+                    onBlur={(e) => handleBlur('land_size_acres', e.target.value, 'planting')}
+                    className={touchedFields.land_size_acres && validationErrors.land_size_acres ? 'error' : ''}
                     required
                     disabled={loading}
                   />
+                  {touchedFields.land_size_acres && validationErrors.land_size_acres && (
+                    <span className="error-text">{validationErrors.land_size_acres}</span>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -765,31 +999,158 @@ const App = () => {
                     type="date"
                     value={newPlanting.planting_date}
                     onChange={(e) => setNewPlanting({...newPlanting, planting_date: e.target.value})}
+                    onBlur={(e) => handleBlur('planting_date', e.target.value, 'planting')}
+                    className={touchedFields.planting_date && validationErrors.planting_date ? 'error' : ''}
                     required
                     disabled={loading}
                     max={new Date().toISOString().split('T')[0]}
                   />
+                  {touchedFields.planting_date && validationErrors.planting_date && (
+                    <span className="error-text">{validationErrors.planting_date}</span>
+                  )}
                 </div>
 
-                <div className="form-group">
-                  <label><i className="fas fa-map-marker-alt"></i> Search Location</label>
-                  <input
-                    id="location-search"
-                    type="text"
-                    placeholder="Enter farm location"
-                    className="location-input"
-                    disabled={loading}
-                  />
+                {/* Location Toggle */}
+                <div className="location-toggle">
+                  <label className="toggle-label">
+                    <input
+                      type="checkbox"
+                      id="useManualLocation"
+                      onChange={(e) => {
+                        const manualSection = document.getElementById('manual-location-section');
+                        const mapSection = document.getElementById('map-location-section');
+                        if (e.target.checked) {
+                          manualSection.style.display = 'block';
+                          mapSection.style.display = 'none';
+                        } else {
+                          manualSection.style.display = 'none';
+                          mapSection.style.display = 'block';
+                        }
+                      }}
+                    />
+                    <span className="toggle-text">
+                      <i className="fas fa-pencil-alt"></i> Enter location manually (skip map)
+                    </span>
+                  </label>
                 </div>
 
-                <div className="map-container" ref={mapRef}></div>
-
-                {address && (
-                  <div className="selected-location">
-                    <i className="fas fa-check-circle"></i>
-                    <p>{address}</p>
+                {/* Google Maps Section */}
+                <div id="map-location-section">
+                  <div className="form-group">
+                    <label><i className="fas fa-map-marker-alt"></i> Search Location on Map</label>
+                    <input
+                      id="location-search"
+                      type="text"
+                      placeholder="Search for your farm location"
+                      className="location-input"
+                      disabled={loading}
+                    />
                   </div>
-                )}
+                  <div className="map-container" ref={mapRef}>
+                    {/* Map will load here */}
+                  </div>
+                  {address && (
+                    <div className="selected-location">
+                      <i className="fas fa-check-circle"></i>
+                      <p>{address}</p>
+                    </div>
+                  )}
+                  {GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY' && (
+                    <div className="map-warning">
+                      <i className="fas fa-exclamation-triangle"></i>
+                      <span>Google Maps not configured. Use manual entry below.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Manual Location Section (Hidden by default) */}
+                <div id="manual-location-section" style={{ display: 'none' }}>
+                  <div className="manual-location-header">
+                    <h4><i className="fas fa-map-pin"></i> Manual Location Entry</h4>
+                  </div>
+                  <div className="form-group">
+                    <label><i className="fas fa-map-marked-alt"></i> Location Description</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Njoro, Nakuru County"
+                      value={newPlanting.region_name}
+                      onChange={(e) => {
+                        setNewPlanting({...newPlanting, region_name: e.target.value});
+                        setAddress(e.target.value);
+                      }}
+                    />
+                    <small className="hint-text">Enter your farm location (village, city, or region)</small>
+                  </div>
+
+                  {/* Optional: Add specific fields for more precise location */}
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Latitude (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="-6.7924"
+                        value={newPlanting.latitude}
+                        onChange={(e) => setNewPlanting({...newPlanting, latitude: e.target.value})}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Longitude (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="39.2083"
+                        value={newPlanting.longitude}
+                        onChange={(e) => setNewPlanting({...newPlanting, longitude: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick location presets */}
+                  <div className="location-presets">
+                    <p><i className="fas fa-history"></i> Common locations:</p>
+                    <div className="preset-buttons">
+                      <button 
+                        type="button"
+                        className="preset-btn"
+                        onClick={() => {
+                          setNewPlanting({...newPlanting, region_name: 'Njoro, Nakuru County, Kenya'});
+                          setAddress('Njoro, Nakuru County, Kenya');
+                        }}
+                      >
+                        Njoro
+                      </button>
+                      <button 
+                        type="button"
+                        className="preset-btn"
+                        onClick={() => {
+                          setNewPlanting({...newPlanting, region_name: 'Matayos, Busia, Kenya'});
+                          setAddress('Matayos, Busia, Kenya');
+                        }}
+                      >
+                        Matayos
+                      </button>
+                      <button 
+                        type="button"
+                        className="preset-btn"
+                        onClick={() => {
+                          setNewPlanting({...newPlanting, region_name: 'Kikuyu, Thika, Kenya'});
+                          setAddress('Kikuyu, Thika, Kenya');
+                        }}
+                      >
+                        Kikuyu
+                      </button>
+                      <button 
+                        type="button"
+                        className="preset-btn"
+                        onClick={() => {
+                          setNewPlanting({...newPlanting, region_name: 'Mlolongo, Machakos, Kenya'});
+                          setAddress('Mlolongo, Machakos, Kenya');
+                        }}
+                      >
+                        Mlolongo
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="form-group">
                   <label><i className="fas fa-sticky-note"></i> Notes (Optional)</label>
@@ -802,7 +1163,6 @@ const App = () => {
                   />
                 </div>
 
-                {/* Yield Estimate */}
                 {newPlanting.crop_id && newPlanting.land_size_acres && (
                   <div className="yield-estimate">
                     <h4>Estimated Yield</h4>
@@ -819,7 +1179,7 @@ const App = () => {
                 <button 
                   type="submit" 
                   className="btn-primary btn-block"
-                  disabled={loading}
+                  disabled={loading || Object.keys(validationErrors).length > 0}
                 >
                   {loading ? 'Submitting...' : 'Submit Planting Request'}
                 </button>
@@ -827,12 +1187,10 @@ const App = () => {
             </div>
           )}
 
-          {/* Calendar Panel */}
           {activePanel === 'calendar' && (
             <div className="calendar-panel">
               {plantings.length === 0 ? (
                 <div className="empty-state">
-                  {/* REPLACE THIS IMAGE: /images/empty-calendar.jpg */}
                   <img src="/images/empty-calendar.jpg" alt="No plantings" />
                   <p>No plantings to show calendar</p>
                 </div>
@@ -853,13 +1211,11 @@ const App = () => {
             </div>
           )}
 
-          {/* Marketplace Panel */}
           {activePanel === 'marketplace' && (
             <div className="marketplace-panel">
               <h3>Your Listings</h3>
               {marketplaceListings.length === 0 ? (
                 <div className="empty-state">
-                  {/* REPLACE THIS IMAGE: /images/empty-marketplace.jpg */}
                   <img src="/images/empty-marketplace.jpg" alt="No listings" />
                   <p>No marketplace listings yet</p>
                   <p className="hint">Plantings marked as "Planted" automatically create hidden listings</p>
@@ -875,21 +1231,23 @@ const App = () => {
                     </div>
                     <div className="listing-details">
                       <p><i className="fas fa-weight"></i> {listing.available_quantity_kg} kg available</p>
-                      <p><i className="fas fa-tag"></i> TSh {listing.price_per_kg}/kg</p>
+                      <p><i className="fas fa-tag"></i> kSh {listing.price_per_kg}/kg</p>
                     </div>
                     {listing.listing_status === 'Hidden' && (
                       <button 
                         className="btn-primary btn-small"
-                        onClick={() => {
-                          // Open listing update modal
-                          const newPrice = prompt('Enter price per kg (TSh):', listing.price_per_kg);
+                        onClick={async () => {
+                          const newPrice = prompt('Enter price per kg (kSh):', listing.price_per_kg);
                           if (newPrice) {
-                            api.marketplace.updateListing(listing.id, {
-                              price_per_kg: parseFloat(newPrice),
-                              listing_status: 'Active'
-                            }).then(() => {
-                              fetchMarketplaceListings();
-                            }).catch(err => setError(err.message));
+                            try {
+                              await api.marketplace.updateListing(listing.id, {
+                                price_per_kg: parseFloat(newPrice),
+                                listing_status: 'Active'
+                              });
+                              await fetchMarketplaceListings();
+                            } catch (err) {
+                              setError(err.message);
+                            }
                           }
                         }}
                       >
@@ -904,7 +1262,6 @@ const App = () => {
         </div>
       </div>
 
-      {/* Calendar Modal */}
       {showCalendar && selectedCrop && (
         <div className="modal-overlay" onClick={() => setShowCalendar(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>

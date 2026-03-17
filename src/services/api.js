@@ -301,14 +301,13 @@ const mockAuth = {
         } else {
           reject(new Error("Invalid email or password"));
         }
-      }, 500); // Simulate network delay
+      }, 500);
     });
   },
 
   register: (userData) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // Check if user already exists
         const existingUser = mockUsers.find(u => u.email === userData.email);
         
         if (existingUser) {
@@ -338,6 +337,52 @@ const mockAuth = {
               role: newUser.role
             }
           });
+        }
+      }, 500);
+    });
+  },
+
+  forgotPassword: (email) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const user = mockUsers.find(u => u.email === email);
+        
+        if (user) {
+          console.log(`Password reset email sent to: ${email}`);
+          resolve({ 
+            message: "Password reset instructions sent to your email" 
+          });
+        } else {
+          reject(new Error("Email not found"));
+        }
+      }, 500);
+    });
+  },
+
+  resetPassword: (token, newPassword) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (token && newPassword) {
+          resolve({ 
+            message: "Password reset successful" 
+          });
+        } else {
+          reject(new Error("Invalid or expired token"));
+        }
+      }, 500);
+    });
+  },
+
+  verifyResetToken: (token) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (token) {
+          resolve({ 
+            valid: true,
+            message: "Token is valid" 
+          });
+        } else {
+          reject(new Error("Invalid token"));
         }
       }, 500);
     });
@@ -383,7 +428,6 @@ const mockFarmerAPI = {
           expected_harvest_date: new Date(new Date(plantingData.planting_date).getTime() + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         };
         
-        // Add to mock data
         mockPlantings.data.push(newPlanting);
         
         resolve({
@@ -431,7 +475,6 @@ const mockMarketplaceAPI = {
 
 // ============ EXPORT API ============
 
-// Choose which mode to use
 export const authAPI = MOCK_MODE ? mockAuth : {
   login: (credentials) => fetchWithAuth('/auth/login', {
     method: 'POST',
@@ -440,7 +483,16 @@ export const authAPI = MOCK_MODE ? mockAuth : {
   register: (userData) => fetchWithAuth('/auth/register', {
     method: 'POST',
     body: JSON.stringify(userData)
-  })
+  }),
+  forgotPassword: (email) => fetchWithAuth('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  }),
+  resetPassword: (token, newPassword) => fetchWithAuth('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword })
+  }),
+  verifyResetToken: (token) => fetchWithAuth(`/auth/verify-token/${token}`)
 };
 
 export const cropsAPI = MOCK_MODE ? mockCropsAPI : {
