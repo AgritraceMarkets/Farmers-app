@@ -2,7 +2,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Set this to true for testing without backend
-const MOCK_MODE = true;
+const MOCK_MODE = false;
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('token');

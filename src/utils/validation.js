@@ -51,13 +51,13 @@ export const validateLandSize = (size) => {
   return !isNaN(num) && num > 0 && num < 1000; // Max 1000 acres
 };
 
-// Date validation - cannot be in the future
+// Date validation - cannot be in the past
 export const validatePlantingDate = (date) => {
   const selectedDate = new Date(date);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  return selectedDate <= today;
+  return selectedDate >= today;
 };
 
 // Required field validation
@@ -108,7 +108,7 @@ export const getErrorMessage = (field, errorType) => {
     },
     plantingDate: {
       required: 'Planting date is required',
-      invalid: 'Planting date cannot be in the future'
+      invalid: 'Planting date cannot be in the past'
     },
     cropType: {
       required: 'Please select a crop type'

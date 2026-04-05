@@ -16,8 +16,8 @@ import {
   formatPhoneNumber
 } from './utils/validation';
 
-// Google Maps API Key - Replace with your own
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+// Google Maps API Key
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
 
 const App = () => {
   // Auth state
@@ -172,6 +172,33 @@ const App = () => {
         delete newErrors[field];
         return newErrors;
       });
+    }
+  };
+
+  const handleCurrentLocation = () => {
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = { 
+            lat: position.coords.latitude, 
+            lng: position.coords.longitude 
+          };
+          const currentMap = markerRef.current ? markerRef.current.getMap() : null;
+          updateLocation(newLocation, currentMap);
+          
+          if (!window.google) {
+            setAddress(`${newLocation.lat.toFixed(4)}, ${newLocation.lng.toFixed(4)}`);
+          }
+          setLoading(false);
+        },
+        (err) => {
+          setError('Failed to get current location: ' + err.message);
+          setLoading(false);
+        }
+      );
+    } else {
+      setError('Geolocation is not supported by your browser.');
     }
   };
 
@@ -358,15 +385,22 @@ const App = () => {
     setError(null);
 
     try {
-      const response = await api.auth.register(registerData);
+      await api.auth.register(registerData);
       
-      authService.setToken(response.token);
-      authService.setUser(response.user);
-      setUser(response.user);
-      setIsLoggedIn(true);
+      // Clear registration form and pass email to login form
+      setLoginData({ email: registerData.email, password: '' });
+      setRegisterData({
+        full_name: '',
+        email: '',
+        phone_number: '',
+        password: '',
+        role: 'Farmer'
+      });
       
-      await fetchInitialData();
-      setShowPanel(true);
+      // Redirect to login panel
+      setActivePanel('login');
+      setError('Registration successful! Please login with your new account.');
+      // Optional: change error to a success message if you implement a toast system 
     } catch (err) {
       setError(err.message);
     } finally {
@@ -791,7 +825,7 @@ const App = () => {
                   <i className="fas fa-weight-hanging stat-icon"></i>
                   <div className="stat-info">
                     <h3>Expected Yield</h3>
-                    <p className="stat-value">{dashboardSummary.summary.total_expected_yield.toFixed(0)} kg</p>
+                    <p className="stat-value">{Number(dashboardSummary.summary.total_expected_yield || 0).toFixed(0)} kg</p>
                   </div>
                 </div>
               </div>
@@ -1003,7 +1037,7 @@ const App = () => {
                     className={touchedFields.planting_date && validationErrors.planting_date ? 'error' : ''}
                     required
                     disabled={loading}
-                    max={new Date().toISOString().split('T')[0]}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                   {touchedFields.planting_date && validationErrors.planting_date && (
                     <span className="error-text">{validationErrors.planting_date}</span>
@@ -1038,13 +1072,25 @@ const App = () => {
                 <div id="map-location-section">
                   <div className="form-group">
                     <label><i className="fas fa-map-marker-alt"></i> Search Location on Map</label>
-                    <input
-                      id="location-search"
-                      type="text"
-                      placeholder="Search for your farm location"
-                      className="location-input"
-                      disabled={loading}
-                    />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        id="location-search"
+                        type="text"
+                        placeholder="Search for your farm location"
+                        className="location-input"
+                        disabled={loading}
+                        style={{ flex: 1 }}
+                      />
+                      <button 
+                        type="button" 
+                        className="btn-secondary" 
+                        onClick={handleCurrentLocation}
+                        disabled={loading}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        <i className="fas fa-location-arrow"></i> Current
+                      </button>
+                    </div>
                   </div>
                   <div className="map-container" ref={mapRef}>
                     {/* Map will load here */}
