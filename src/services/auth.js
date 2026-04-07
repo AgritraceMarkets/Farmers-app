@@ -1,4 +1,4 @@
-// Authentication service
+// src/services/auth.js
 class AuthService {
   setToken(token) {
     localStorage.setItem('token', token);
@@ -14,7 +14,14 @@ class AuthService {
 
   getUser() {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    if (user) {
+      try {
+        return JSON.parse(user);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   logout() {

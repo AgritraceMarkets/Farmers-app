@@ -4,6 +4,7 @@ import api from './services/api';
 import authService from './services/auth';
 import LoadingSpinner from './components/LoadingSpinner';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
+import notificationService from './services/notificationService';
 import { 
   validateEmail, 
   validatePhone, 
@@ -36,7 +37,10 @@ const App = () => {
   // Validation state
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
-
+  const [successMessage, setSuccessMessage] = useState('');
+// Notification state
+const [notificationPermission, setNotificationPermission] = useState(false);
+const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   // Data state
   const [cropTypes, setCropTypes] = useState([]);
   const [plantings, setPlantings] = useState([]);
@@ -96,7 +100,28 @@ const App = () => {
       initializeMap();
     }
   }, [isLoggedIn]);
+// Request notification permission when logged in
+useEffect(() => {
+  if (isLoggedIn) {
+    // Check current permission status
+    const currentPermission = notificationService.getPermissionStatus();
+    setNotificationPermission(currentPermission === 'granted');
+    
+    // Only show banner if not granted and not denied
+    if (currentPermission === 'default') {
+      setShowNotificationBanner(true);
+    }
+  }
+}, [isLoggedIn]);
 
+// Check for upcoming events and send notifications
+useEffect(() => {
+  if (isLoggedIn && dashboardSummary?.upcoming_events?.length > 0 && notificationPermission) {
+    console.log('Checking for upcoming events...', dashboardSummary.upcoming_events);
+    notificationService.checkUpcomingEvents(dashboardSummary.upcoming_events);
+    notificationService.clearOldNotifications();
+  }
+}, [dashboardSummary, notificationPermission, isLoggedIn]);
   // Validation functions
   const validateRegistrationField = (name, value) => {
     switch (name) {
@@ -337,76 +362,96 @@ const App = () => {
   };
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    try {
-      const response = await api.auth.login(loginData);
-      
-      authService.setToken(response.token);
-      authService.setUser(response.user);
-      setUser(response.user);
-      setIsLoggedIn(true);
-      
-      await fetchInitialData();
-      setShowPanel(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await api.auth.login(loginData);
+    
+    authService.setToken(response.token);
+    authService.setUser(response.user);
+    setUser(response.user);
+    setIsLoggedIn(true);
+    
+    await fetchInitialData();
+    
+    // Make sure we set the correct panel and show it
+    setActivePanel('profile');  // Set to profile
+    setShowPanel(true);         // Show the panel
+    
+    // Reset any validation errors
+    setValidationErrors({});
+    setTouchedFields({});
+    
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    
-    // Validate all fields before submission
-    const errors = {};
-    Object.keys(registerData).forEach(key => {
-      if (key !== 'role') {
-        const error = validateRegistrationField(key, registerData[key]);
-        if (error) {
-          errors[key] = getErrorMessage(
-            key === 'full_name' ? 'name' : 
-            key === 'phone_number' ? 'phone' : key,
-            error
-          );
-        }
+  e.preventDefault();
+  
+  // Validate all fields before submission
+  const errors = {};
+  Object.keys(registerData).forEach(key => {
+    if (key !== 'role') {
+      const error = validateRegistrationField(key, registerData[key]);
+      if (error) {
+        errors[key] = getErrorMessage(
+          key === 'full_name' ? 'name' : 
+          key === 'phone_number' ? 'phone' : key,
+          error
+        );
       }
+    }
+  });
+
+  if (Object.keys(errors).length > 0) {
+    setValidationErrors(errors);
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const response = await api.auth.register(registerData);
+    
+    // Store the token and user data
+    authService.setToken(response.token);
+    authService.setUser(response.user);
+    
+    // Show success message
+    setError(null); // Clear any previous errors
+    
+    // Reset registration form
+    setRegisterData({
+      full_name: '',
+      email: '',
+      phone_number: '',
+      password: '',
+      role: 'Farmer'
     });
-
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await api.auth.register(registerData);
-      
-      // Clear registration form and pass email to login form
-      setLoginData({ email: registerData.email, password: '' });
-      setRegisterData({
-        full_name: '',
-        email: '',
-        phone_number: '',
-        password: '',
-        role: 'Farmer'
-      });
-      
-      // Redirect to login panel
-      setActivePanel('login');
-      setError('Registration successful! Please login with your new account.');
-      // Optional: change error to a success message if you implement a toast system 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    
+    // Reset validation
+    setValidationErrors({});
+    setTouchedFields({});
+    
+    // Switch to login panel
+    setActivePanel('login');
+    
+    // Show success message (optional)
+    setSuccessMessage('Registration successful! Please login with your credentials.');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogout = () => {
     authService.logout();
@@ -573,7 +618,12 @@ const App = () => {
     return (
       <div className="auth-container">
         <div className="auth-background"></div>
-        
+        {successMessage && (
+  <div className="success-banner">
+    <i className="fas fa-check-circle"></i>
+    <p>{successMessage}</p>
+  </div>
+)}
         {error && (
           <div className="error-banner">
             <i className="fas fa-exclamation-circle"></i>
@@ -581,7 +631,23 @@ const App = () => {
             <button onClick={() => setError(null)}>×</button>
           </div>
         )}
-
+{/* Notification Permission Banner */}
+{showNotificationBanner && !notificationPermission && (
+  <div className="notification-banner">
+    <i className="fas fa-bell"></i>
+    <div className="notification-banner-content">
+      <h4>Get Task Reminders</h4>
+      <p>Enable notifications to never miss a farming task</p>
+    </div>
+    <button onClick={async () => {
+      const granted = await notificationService.requestPermission();
+      setNotificationPermission(granted);
+      setShowNotificationBanner(false);
+    }}>
+      Enable
+    </button>
+  </div>
+)}
         <div className="auth-card animate-fadeIn">
           <div className="auth-header">
             <h1>🌾 AgriTrace Market</h1>
@@ -706,39 +772,33 @@ const App = () => {
                 )}
               </div>
               
-              <div className="form-group">
-                <label><i className="fas fa-lock"></i> Password</label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                  onBlur={(e) => handleBlur('password', e.target.value, 'register')}
-                  className={touchedFields.password && validationErrors.password ? 'error' : ''}
-                  required
-                  disabled={loading}
-                  minLength="6"
-                />
-                {touchedFields.password && validationErrors.password ? (
-                  <span className="error-text">{validationErrors.password}</span>
-                ) : registerData.password && (
-                  <div className="password-strength">
-                    <div 
-                      className="strength-bar"
-                      style={{ 
-                        width: `${(registerData.password.length / 12) * 100}%`,
-                        backgroundColor: registerData.password.length < 6 ? '#d32f2f' : 
-                                       registerData.password.length < 8 ? '#f57c00' : '#388e3c'
-                      }}
-                    ></div>
-                    <span className="strength-text">
-                      {registerData.password.length < 6 ? 'Too short' : 
-                       registerData.password.length < 8 ? 'Good' : 'Strong'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
+              {/* Replace the password field section with this simpler version */}
+<div className="form-group">
+  <label><i className="fas fa-lock"></i> Password</label>
+  <input
+    type="password"
+    placeholder="••••••••"
+    value={registerData.password}
+    onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+    onBlur={(e) => handleBlur('password', e.target.value, 'register')}
+    className={touchedFields.password && validationErrors.password ? 'error' : ''}
+    required
+    disabled={loading}
+    minLength="6"
+  />
+  {touchedFields.password && validationErrors.password ? (
+    <span className="error-text">{validationErrors.password}</span>
+  ) : registerData.password && (
+    <div className="password-requirements">
+      <span className={`req ${registerData.password.length >= 6 ? 'met' : ''}`}>
+        <i className="fas fa-check-circle"></i> {registerData.password.length}/6+ chars
+      </span>
+      <span className={`req ${registerData.password.length >= 8 ? 'met' : ''}`}>
+        <i className="fas fa-check-circle"></i> Strong password
+      </span>
+    </div>
+  )}
+</div>
               <button 
                 type="submit" 
                 className="btn-primary btn-block"
@@ -773,23 +833,30 @@ const App = () => {
       <header className="main-header">
         <div className="header-content">
           <h1>🌾 AgriTrace Market</h1>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={() => togglePanel('profile')}>
-              <i className="fas fa-user"></i>
-            </button>
-            <button className="icon-btn" onClick={() => togglePanel('register')}>
-              <i className="fas fa-plus"></i>
-            </button>
-            <button className="icon-btn" onClick={() => togglePanel('calendar')}>
-              <i className="fas fa-calendar"></i>
-            </button>
-            <button className="icon-btn" onClick={() => togglePanel('marketplace')}>
-              <i className="fas fa-store"></i>
-            </button>
-            <button className="icon-btn logout" onClick={handleLogout}>
-              <i className="fas fa-sign-out-alt"></i>
-            </button>
-          </div>
+         <div className="header-actions">
+  <button className="icon-btn" onClick={() => togglePanel('profile')}>
+    <i className="fas fa-user"></i>
+  </button>
+  <button className="icon-btn" onClick={() => togglePanel('register')}>
+    <i className="fas fa-plus"></i>
+  </button>
+  <button className="icon-btn" onClick={() => togglePanel('calendar')}>
+    <i className="fas fa-calendar"></i>
+  </button>
+  <button className="icon-btn" onClick={() => togglePanel('marketplace')}>
+    <i className="fas fa-store"></i>
+  </button>
+  {/* NEW: Notification Settings Button */}
+  <button className="icon-btn" onClick={() => togglePanel('notifications')}>
+    <i className={`fas fa-bell ${notificationPermission ? 'active-bell' : ''}`}></i>
+    {dashboardSummary?.upcoming_events?.length > 0 && notificationPermission && (
+      <span className="notification-badge">{dashboardSummary.upcoming_events.length}</span>
+    )}
+  </button>
+  <button className="icon-btn logout" onClick={handleLogout}>
+    <i className="fas fa-sign-out-alt"></i>
+  </button>
+</div>
         </div>
       </header>
 
@@ -943,30 +1010,135 @@ const App = () => {
         </div>
 
         <div className="panel-content">
-          {activePanel === 'profile' && user && (
-            <div className="profile-panel">
-              <div className="profile-header">
-                <img 
-                  src={`https://ui-avatars.com/api/?name=${user.full_name}&background=2e7d32&color=fff`} 
-                  alt={user.full_name}
-                  className="profile-avatar-large"
-                />
-                <h3>{user.full_name}</h3>
-                <p className="profile-role">{user.role}</p>
-              </div>
-              <div className="profile-details">
-                <div className="detail-item">
-                  <i className="fas fa-envelope"></i>
-                  <span>{user.email}</span>
+         {activePanel === 'profile' && user && (
+  <div className="profile-panel">
+    <div className="profile-header">
+      <img 
+        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.name)}&background=2e7d32&color=fff`} 
+        alt={user.full_name || user.name}
+        className="profile-avatar-large"
+      />
+      <h3>{user.full_name || user.name}</h3>
+      <p className="profile-role">{user.role || 'Farmer'}</p>
+    </div>
+    <div className="profile-details">
+      <div className="detail-item">
+        <i className="fas fa-envelope"></i>
+        <span>{user.email}</span>
+      </div>
+      <div className="detail-item">
+        <i className="fas fa-phone"></i>
+        <span>{user.phone_number || 'Not provided'}</span>
+      </div>
+      <div className="detail-item">
+        <i className="fas fa-calendar-alt"></i>
+        <span>Member since {user.memberSince || new Date().getFullYear()}</span>
+      </div>
+    </div>
+  </div>
+)}
+ {/* Fallback if user is not loaded yet */}
+    {activePanel === 'profile' && !user && (
+      <div className="profile-panel">
+        <div className="loading-profile">
+          <div className="spinner"></div>
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    )}{activePanel === 'notifications' && (
+  <div className="notifications-panel">
+    <h3><i className="fas fa-bell"></i> Notification Settings</h3>
+    
+    <div className="notification-status">
+      <div className="status-icon">
+        {notificationPermission ? (
+          <i className="fas fa-check-circle" style={{ color: '#388e3c', fontSize: '2rem' }}></i>
+        ) : (
+          <i className="fas fa-bell-slash" style={{ color: '#d32f2f', fontSize: '2rem' }}></i>
+        )}
+      </div>
+      <div className="status-text">
+        <h4>
+          {notificationPermission ? 'Notifications Enabled' : 'Notifications Disabled'}
+        </h4>
+        <p>
+          {notificationPermission 
+            ? 'You will receive reminders for upcoming farming tasks' 
+            : 'Enable notifications to get reminders about your crops'}
+        </p>
+      </div>
+    </div>
+    
+    {!notificationPermission && (
+      <div className="notification-prompt">
+        <div className="benefits-list">
+          <h4>With notifications you'll get:</h4>
+          <ul>
+            <li><i className="fas fa-check-circle"></i> Upcoming farming tasks</li>
+            <li><i className="fas fa-check-circle"></i> Fertilizer application dates</li>
+            <li><i className="fas fa-check-circle"></i> Harvest reminders</li>
+            <li><i className="fas fa-check-circle"></i> Weather alerts</li>
+          </ul>
+        </div>
+        <button 
+          className="btn-primary btn-block"
+          onClick={async () => {
+            const granted = await notificationService.requestPermission();
+            setNotificationPermission(granted);
+            if (granted) {
+              setShowNotificationBanner(false);
+              // Refresh to show updated status
+              setActivePanel('profile');
+              setTimeout(() => setActivePanel('notifications'), 100);
+            }
+          }}
+        >
+          <i className="fas fa-bell"></i> Enable Notifications
+        </button>
+      </div>
+    )}
+    
+    {notificationPermission && (
+      <>
+        <div className="upcoming-events-preview">
+          <h4><i className="fas fa-calendar-alt"></i> Upcoming Events</h4>
+          {dashboardSummary?.upcoming_events?.length > 0 ? (
+            <div className="events-list">
+              {dashboardSummary.upcoming_events.map((event, idx) => (
+                <div key={idx} className="event-item">
+                  <div className="event-urgency">
+                    {event.days_remaining <= 1 ? '🔴' : event.days_remaining <= 2 ? '🟡' : '🟢'}
+                  </div>
+                  <div className="event-details">
+                    <strong>{event.stage_name}</strong>
+                    <span>{event.crop_name}</span>
+                    <small>{event.days_remaining} days remaining</small>
+                  </div>
                 </div>
-                <div className="detail-item">
-                  <i className="fas fa-phone"></i>
-                  <span>{user.phone_number}</span>
-                </div>
-              </div>
+              ))}
             </div>
+          ) : (
+            <p className="no-events">No upcoming events scheduled</p>
           )}
-
+        </div>
+        
+        <div className="test-notification-section">
+          <button 
+            className="btn-secondary btn-block"
+            onClick={() => {
+              const success = notificationService.testNotification();
+              if (!success && !notificationPermission) {
+                alert('Please enable notifications first');
+              }
+            }}
+          >
+            <i className="fas fa-flask"></i> Send Test Notification
+          </button>
+        </div>
+      </>
+    )}
+  </div>
+)}
           {/* ===== UPDATED: Register Planting Panel with Both Location Options ===== */}
           {activePanel === 'register' && (
             <div className="register-panel">
