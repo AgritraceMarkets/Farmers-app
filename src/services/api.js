@@ -1,8 +1,8 @@
 // API Service - Handles all backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3050/api';
 
 // Set this to true for testing without backend
-const MOCK_MODE = true;
+const MOCK_MODE = false;
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('token');
@@ -507,10 +507,11 @@ export const farmerAPI = MOCK_MODE ? mockFarmerAPI : {
     method: 'POST',
     body: JSON.stringify(plantingData)
   }),
-  updatePlantingStatus: (id, status) => fetchWithAuth(`/planting/update-status/${id}`, {
+  updatePlantingStatus: (id, status, extraData = {}) => fetchWithAuth(`/planting/update-status/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ status })
-  })
+    body: JSON.stringify({ status, ...extraData })
+  }),
+  getOrders: () => fetchWithAuth('/farmer/orders')
 };
 
 export const marketplaceAPI = MOCK_MODE ? mockMarketplaceAPI : {

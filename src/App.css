@@ -1035,105 +1035,50 @@
   transform: none;
   box-shadow: none;
 }
-/* Location Toggle Styles */
-.location-toggle {
-  margin: 1.5rem 0;
-  padding: 1rem;
+/* Location Section Styles */
+.location-section {
   background: #f8f9fa;
-  border-radius: 12px;
+  padding: 1.5rem;
+  border-radius: 16px;
   border: 1px solid var(--light-gray);
+  margin-bottom: 1.5rem;
 }
 
-.toggle-label {
+.btn-location-current {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  cursor: pointer;
-}
-
-.toggle-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.toggle-text {
-  color: var(--dark);
-  font-weight: 500;
-}
-
-.toggle-text i {
-  color: var(--primary);
-  margin-right: 0.5rem;
-}
-
-/* Manual Location Section */
-.manual-location-header {
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--primary-light);
-}
-
-.manual-location-header h4 {
-  color: var(--primary-dark);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Location Presets */
-.location-presets {
-  margin: 1rem 0;
+  justify-content: center;
+  gap: 10px;
+  background: var(--primary);
+  color: white;
+  border: none;
   padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 10px;
-}
-
-.location-presets p {
-  color: var(--gray);
-  margin-bottom: 0.8rem;
-  font-size: 0.9rem;
-}
-
-.preset-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.preset-btn {
-  background: var(--white);
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
 }
 
-.preset-btn:hover {
-  background: var(--primary);
-  color: var(--white);
+.btn-location-current:hover {
+  background: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(46, 125, 50, 0.3);
 }
 
-/* Map Warning */
-.map-warning {
-  background: #fff3e0;
-  border: 1px solid var(--warning);
-  color: var(--warning);
-  padding: 0.8rem;
-  border-radius: 8px;
-  margin: 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+.btn-location-current:active {
+  transform: translateY(0);
 }
 
-.map-warning i {
+.btn-location-current i {
   font-size: 1.1rem;
+}
+
+.manual-location-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed var(--light-gray);
 }
 
 /* Form Row for coordinates */
@@ -1390,4 +1335,208 @@
 
 .notification-banner button:hover {
   background: var(--primary-dark);
+}
+/* Orders Panel Styles */
+.orders-panel h3 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-dark);
+  border-bottom: 2px solid var(--primary-light);
+  padding-bottom: 0.5rem;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.order-card {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.order-header h4 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 1rem;
+}
+
+.order-details p {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  color: var(--gray);
+}
+
+.order-details hr {
+  margin: 0.8rem 0;
+  border: 0;
+  border-top: 1px solid var(--light-gray);
+}
+
+.order-details strong {
+  color: var(--dark);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--error);
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+/* Intuitive Icon Buttons with Text */
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.icon-btn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--primary-dark);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  min-width: 70px;
+  position: relative;
+}
+
+.icon-btn-text i {
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+
+.icon-btn-text span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.icon-btn-text:hover {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* Stage Instructions in Calendar */
+.stage-instructions {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(46, 125, 50, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary);
+}
+
+.stage-instructions p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-instructions i {
+  color: var(--primary);
+}
+
+.bottom-nav {
+  display: none; /* Hidden by default on desktop */
+}
+
+/* Mobile optimizations for header labels and navigation */
+@media (max-width: 768px) {
+  .header-actions {
+    display: none; /* Hide header buttons on mobile */
+  }
+
+  .main-header h1 {
+    font-size: 1.2rem;
+    text-align: center;
+    width: 100%;
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    justify-content: space-around;
+    padding: 0.5rem 0;
+    z-index: 1000;
+    border-top: 1px solid var(--light-gray);
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex: 1;
+    position: relative;
+    padding: 4px 0;
+  }
+
+  .nav-item i {
+    font-size: 1.2rem;
+    margin-bottom: 2px;
+  }
+
+  .nav-item span {
+    display: block; /* Force show labels on mobile bottom nav */
+  }
+
+  .nav-item:active {
+    color: var(--primary);
+  }
+  
+  .nav-item .notification-badge {
+    top: 0;
+    right: 20%;
+  }
+
+  /* Add padding to bottom of main content so bottom nav doesn't cover it */
+  .app {
+    padding-bottom: 70px;
+  }
+  
+  .sliding-panel {
+    bottom: 60px; /* Adjust panel to not overlap bottom nav */
+    height: calc(100% - 60px);
+  }
 }

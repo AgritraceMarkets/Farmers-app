@@ -46,6 +46,7 @@ const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   const [plantings, setPlantings] = useState([]);
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [marketplaceListings, setMarketplaceListings] = useState([]);
+  const [farmerOrders, setFarmerOrders] = useState([]);
 
   // Location state
   const [location, setLocation] = useState({ lat: -6.7924, lng: 39.2083 });
@@ -87,17 +88,13 @@ const [showNotificationBanner, setShowNotificationBanner] = useState(false);
     }
   }, []);
 
-  // Load Google Maps script
   useEffect(() => {
     if (isLoggedIn && !window.google) {
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;
       script.defer = true;
-      script.onload = initializeMap;
       document.head.appendChild(script);
-    } else if (isLoggedIn && window.google) {
-      initializeMap();
     }
   }, [isLoggedIn]);
 // Request notification permission when logged in
@@ -227,83 +224,24 @@ useEffect(() => {
     }
   };
 
-  const initializeMap = () => {
-    if (mapRef.current && window.google) {
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: location,
-        zoom: 15,
-        styles: [
-          {
-            featureType: "all",
-            elementType: "geometry",
-            stylers: [{ color: "#f5f5f5" }]
-          },
-          {
-            featureType: "water",
-            elementType: "geometry",
-            stylers: [{ color: "#c8e6c9" }]
-          }
-        ]
-      });
 
-      markerRef.current = new window.google.maps.Marker({
-        position: location,
-        map: map,
-        draggable: true,
-        animation: window.google.maps.Animation.DROP
-      });
-
-      map.addListener('click', (e) => {
-        const newLocation = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-        updateLocation(newLocation, map);
-      });
-
-      markerRef.current.addListener('dragend', () => {
-        const position = markerRef.current.getPosition();
-        const newLocation = { lat: position.lat(), lng: position.lng() };
-        updateLocation(newLocation, map);
-      });
-
-      const input = document.getElementById('location-search');
-      if (input) {
-        const autocomplete = new window.google.maps.places.Autocomplete(input);
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-          if (place.geometry) {
-            const newLocation = {
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng()
-            };
-            updateLocation(newLocation, map);
-            setAddress(place.formatted_address);
-          }
-        });
-      }
-    }
-  };
-
-  const updateLocation = (newLocation, map) => {
+  const updateLocation = (newLocation) => {
     setLocation(newLocation);
     setNewPlanting(prev => ({
       ...prev,
       latitude: newLocation.lat,
-      longitude: newLocation.lng,
-      region_name: `${newLocation.lat.toFixed(4)}, ${newLocation.lng.toFixed(4)}`
+      longitude: newLocation.lng
     }));
     
-    if (markerRef.current) {
-      markerRef.current.setPosition(newLocation);
-    }
-    
-    if (map) {
-      map.setCenter(newLocation);
-    }
-
     if (window.google) {
       const geocoder = new window.google.maps.Geocoder();
       geocoder.geocode({ location: newLocation }, (results, status) => {
         if (status === 'OK' && results[0]) {
           setAddress(results[0].formatted_address);
+          setNewPlanting(prev => ({
+            ...prev,
+            region_name: results[0].formatted_address
+          }));
         }
       });
     }
@@ -316,12 +254,22 @@ useEffect(() => {
         fetchCropTypes(),
         fetchMyPlantings(),
         fetchDashboardSummary(),
-        fetchMarketplaceListings()
+        fetchMarketplaceListings(),
+        fetchFarmerOrders()
       ]);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFarmerOrders = async () => {
+    try {
+      const response = await api.farmer.getOrders();
+      setFarmerOrders(response.data || []);
+    } catch (err) {
+      throw err;
     }
   };
 
@@ -579,11 +527,19 @@ useEffect(() => {
   };
 
   const updatePlantingStatus = async (id, status) => {
+    let extraData = {};
+    if (status === 'Harvested') {
+      const actualYield = prompt('Enter actual harvested quantity (kg):');
+      if (actualYield === null) return; // Cancelled
+      extraData.actual_yield_kg = parseFloat(actualYield);
+    }
+
     setLoading(true);
     try {
-      await api.farmer.updatePlantingStatus(id, status);
+      await api.farmer.updatePlantingStatus(id, status, extraData);
       await fetchMyPlantings();
       await fetchMarketplaceListings();
+      await fetchFarmerOrders(); // Refresh orders too
     } catch (err) {
       setError(err.message);
     } finally {
@@ -650,7 +606,7 @@ useEffect(() => {
 )}
         <div className="auth-card animate-fadeIn">
           <div className="auth-header">
-            <h1>🌾 AgriTrace Market</h1>
+            <h1>🌾 AgriTrace Farmers App</h1>
             <p>Connect directly with farmers for future harvests</p>
           </div>
 
@@ -832,31 +788,35 @@ useEffect(() => {
 
       <header className="main-header">
         <div className="header-content">
-          <h1>🌾 AgriTrace Market</h1>
-         <div className="header-actions">
-  <button className="icon-btn" onClick={() => togglePanel('profile')}>
-    <i className="fas fa-user"></i>
-  </button>
-  <button className="icon-btn" onClick={() => togglePanel('register')}>
-    <i className="fas fa-plus"></i>
-  </button>
-  <button className="icon-btn" onClick={() => togglePanel('calendar')}>
-    <i className="fas fa-calendar"></i>
-  </button>
-  <button className="icon-btn" onClick={() => togglePanel('marketplace')}>
-    <i className="fas fa-store"></i>
-  </button>
-  {/* NEW: Notification Settings Button */}
-  <button className="icon-btn" onClick={() => togglePanel('notifications')}>
-    <i className={`fas fa-bell ${notificationPermission ? 'active-bell' : ''}`}></i>
-    {dashboardSummary?.upcoming_events?.length > 0 && notificationPermission && (
-      <span className="notification-badge">{dashboardSummary.upcoming_events.length}</span>
-    )}
-  </button>
-  <button className="icon-btn logout" onClick={handleLogout}>
-    <i className="fas fa-sign-out-alt"></i>
-  </button>
-</div>
+          <h1>🌾 AgriTrace Farmers App</h1>
+          <div className="header-actions">
+            <button className="icon-btn-text" onClick={() => togglePanel('profile')}>
+              <i className="fas fa-user"></i>
+              <span>Profile</span>
+            </button>
+            <button className="icon-btn-text" onClick={() => togglePanel('register')}>
+              <i className="fas fa-plus-circle"></i>
+              <span>New Planting</span>
+            </button>
+            <button className="icon-btn-text" onClick={() => togglePanel('calendar')}>
+              <i className="fas fa-calendar-alt"></i>
+              <span>Calendar</span>
+            </button>
+            <button className="icon-btn-text" onClick={() => togglePanel('marketplace')}>
+              <i className="fas fa-store"></i>
+              <span>My Market</span>
+            </button>
+            <button className="icon-btn-text" onClick={() => togglePanel('orders')}>
+              <i className="fas fa-shopping-basket"></i>
+              <span>Orders</span>
+              {farmerOrders.length > 0 && (
+                <span className="notification-badge">{farmerOrders.length}</span>
+              )}
+            </button>
+            <button className="icon-btn logout" onClick={handleLogout} title="Logout">
+              <i className="fas fa-sign-out-alt"></i>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -967,6 +927,14 @@ useEffect(() => {
                               Mark as Planted
                             </button>
                           )}
+                          {planting.status === 'Growing' && (
+                            <button 
+                              className="btn-primary btn-small"
+                              onClick={() => updatePlantingStatus(planting.id, 'Harvested')}
+                            >
+                              Mark as Harvested
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1003,6 +971,7 @@ useEffect(() => {
             {activePanel === 'register' && <><i className="fas fa-seedling"></i> Register Planting</>}
             {activePanel === 'calendar' && <><i className="fas fa-calendar"></i> Growth Calendar</>}
             {activePanel === 'marketplace' && <><i className="fas fa-store"></i> Marketplace</>}
+            {activePanel === 'orders' && <><i className="fas fa-shopping-basket"></i> Received Orders</>}
           </h2>
           <button className="close-btn" onClick={closePanel}>
             <i className="fas fa-times"></i>
@@ -1010,6 +979,39 @@ useEffect(() => {
         </div>
 
         <div className="panel-content">
+          {activePanel === 'orders' && (
+            <div className="orders-panel">
+              <h3>Customer Orders</h3>
+              {farmerOrders.length === 0 ? (
+                <div className="empty-state">
+                  <img src="/images/empty-orders.jpg" alt="No orders" />
+                  <p>No orders received yet</p>
+                </div>
+              ) : (
+                <div className="orders-list">
+                  {farmerOrders.map(order => (
+                    <div key={order.id} className="order-card">
+                      <div className="order-header">
+                        <h4>Order #{order.id}</h4>
+                        <span className={`status-badge status-${order.escrow_status?.toLowerCase()}`}>
+                          {order.escrow_status}
+                        </span>
+                      </div>
+                      <div className="order-details">
+                        <p><strong>Crop:</strong> {order.crop_name}</p>
+                        <p><strong>Quantity:</strong> {order.quantity_ordered_kg} kg</p>
+                        <p><strong>Total Price:</strong> kSh {order.total_price}</p>
+                        <hr />
+                        <p><strong>Customer:</strong> {order.buyer_name}</p>
+                        <p><strong>Phone:</strong> {order.buyer_phone}</p>
+                        <p><strong>Delivery:</strong> {order.delivery_address || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
          {activePanel === 'profile' && user && (
   <div className="profile-panel">
     <div className="profile-header">
@@ -1216,159 +1218,69 @@ useEffect(() => {
                   )}
                 </div>
 
-                {/* Location Toggle */}
-                <div className="location-toggle">
-                  <label className="toggle-label">
-                    <input
-                      type="checkbox"
-                      id="useManualLocation"
-                      onChange={(e) => {
-                        const manualSection = document.getElementById('manual-location-section');
-                        const mapSection = document.getElementById('map-location-section');
-                        if (e.target.checked) {
-                          manualSection.style.display = 'block';
-                          mapSection.style.display = 'none';
-                        } else {
-                          manualSection.style.display = 'none';
-                          mapSection.style.display = 'block';
-                        }
-                      }}
-                    />
-                    <span className="toggle-text">
-                      <i className="fas fa-pencil-alt"></i> Enter location manually (skip map)
-                    </span>
-                  </label>
-                </div>
-
-                {/* Google Maps Section */}
-                <div id="map-location-section">
+                {/* Location Section */}
+                <div className="location-section">
                   <div className="form-group">
-                    <label><i className="fas fa-map-marker-alt"></i> Search Location on Map</label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input
-                        id="location-search"
-                        type="text"
-                        placeholder="Search for your farm location"
-                        className="location-input"
-                        disabled={loading}
-                        style={{ flex: 1 }}
-                      />
+                    <label><i className="fas fa-map-marker-alt"></i> Farm Location</label>
+                    <div className="location-actions">
                       <button 
                         type="button" 
-                        className="btn-secondary" 
+                        className="btn-location-current" 
                         onClick={handleCurrentLocation}
                         disabled={loading}
-                        style={{ whiteSpace: 'nowrap' }}
                       >
-                        <i className="fas fa-location-arrow"></i> Current
+                        <i className="fas fa-location-arrow"></i> Use My Current Location
                       </button>
                     </div>
                   </div>
-                  <div className="map-container" ref={mapRef}>
-                    {/* Map will load here */}
-                  </div>
+
                   {address && (
                     <div className="selected-location">
                       <i className="fas fa-check-circle"></i>
                       <p>{address}</p>
                     </div>
                   )}
-                  {GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY' && (
-                    <div className="map-warning">
-                      <i className="fas fa-exclamation-triangle"></i>
-                      <span>Google Maps not configured. Use manual entry below.</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* Manual Location Section (Hidden by default) */}
-                <div id="manual-location-section" style={{ display: 'none' }}>
-                  <div className="manual-location-header">
-                    <h4><i className="fas fa-map-pin"></i> Manual Location Entry</h4>
-                  </div>
-                  <div className="form-group">
-                    <label><i className="fas fa-map-marked-alt"></i> Location Description</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Njoro, Nakuru County"
-                      value={newPlanting.region_name}
-                      onChange={(e) => {
-                        setNewPlanting({...newPlanting, region_name: e.target.value});
-                        setAddress(e.target.value);
-                      }}
-                    />
-                    <small className="hint-text">Enter your farm location (village, city, or region)</small>
-                  </div>
-
-                  {/* Optional: Add specific fields for more precise location */}
-                  <div className="form-row">
+                  <div className="manual-location-section">
                     <div className="form-group">
-                      <label>Latitude (Optional)</label>
+                      <label><i className="fas fa-edit"></i> Or Enter Location Manually</label>
                       <input
                         type="text"
-                        placeholder="-6.7924"
-                        value={newPlanting.latitude}
-                        onChange={(e) => setNewPlanting({...newPlanting, latitude: e.target.value})}
+                        placeholder="e.g., Njoro, Nakuru County"
+                        value={newPlanting.region_name}
+                        onChange={(e) => {
+                          setNewPlanting({...newPlanting, region_name: e.target.value});
+                          setAddress(e.target.value);
+                        }}
                       />
+                      <small className="hint-text">Village, city, or region name</small>
                     </div>
-                    <div className="form-group">
-                      <label>Longitude (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="39.2083"
-                        value={newPlanting.longitude}
-                        onChange={(e) => setNewPlanting({...newPlanting, longitude: e.target.value})}
-                      />
-                    </div>
-                  </div>
 
-                  {/* Quick location presets */}
-                  <div className="location-presets">
-                    <p><i className="fas fa-history"></i> Common locations:</p>
-                    <div className="preset-buttons">
-                      <button 
-                        type="button"
-                        className="preset-btn"
-                        onClick={() => {
-                          setNewPlanting({...newPlanting, region_name: 'Njoro, Nakuru County, Kenya'});
-                          setAddress('Njoro, Nakuru County, Kenya');
-                        }}
-                      >
-                        Njoro
-                      </button>
-                      <button 
-                        type="button"
-                        className="preset-btn"
-                        onClick={() => {
-                          setNewPlanting({...newPlanting, region_name: 'Matayos, Busia, Kenya'});
-                          setAddress('Matayos, Busia, Kenya');
-                        }}
-                      >
-                        Matayos
-                      </button>
-                      <button 
-                        type="button"
-                        className="preset-btn"
-                        onClick={() => {
-                          setNewPlanting({...newPlanting, region_name: 'Kikuyu, Thika, Kenya'});
-                          setAddress('Kikuyu, Thika, Kenya');
-                        }}
-                      >
-                        Kikuyu
-                      </button>
-                      <button 
-                        type="button"
-                        className="preset-btn"
-                        onClick={() => {
-                          setNewPlanting({...newPlanting, region_name: 'Mlolongo, Machakos, Kenya'});
-                          setAddress('Mlolongo, Machakos, Kenya');
-                        }}
-                      >
-                        Mlolongo
-                      </button>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Latitude</label>
+                        <input
+                          type="text"
+                          placeholder="-6.7924"
+                          value={newPlanting.latitude}
+                          onChange={(e) => setNewPlanting({...newPlanting, latitude: e.target.value})}
+                          readOnly
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Longitude</label>
+                        <input
+                          type="text"
+                          placeholder="39.2083"
+                          value={newPlanting.longitude}
+                          onChange={(e) => setNewPlanting({...newPlanting, longitude: e.target.value})}
+                          readOnly
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
+
 
                 <div className="form-group">
                   <label><i className="fas fa-sticky-note"></i> Notes (Optional)</label>
@@ -1516,6 +1428,11 @@ useEffect(() => {
                         }}
                       ></div>
                     </div>
+                    {stage.instructions && (
+                      <div className="stage-instructions">
+                        <p><i className="fas fa-info-circle"></i> {stage.instructions}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1523,6 +1440,31 @@ useEffect(() => {
           </div>
         </div>
       )}
+      <nav className="bottom-nav">
+        <button className="nav-item" onClick={() => togglePanel('profile')}>
+          <i className="fas fa-user"></i>
+          <span>Profile</span>
+        </button>
+        <button className="nav-item" onClick={() => togglePanel('register')}>
+          <i className="fas fa-plus-circle"></i>
+          <span>New</span>
+        </button>
+        <button className="nav-item" onClick={() => togglePanel('calendar')}>
+          <i className="fas fa-calendar-alt"></i>
+          <span>Calendar</span>
+        </button>
+        <button className="nav-item" onClick={() => togglePanel('marketplace')}>
+          <i className="fas fa-store"></i>
+          <span>Market</span>
+        </button>
+        <button className="nav-item" onClick={() => togglePanel('orders')}>
+          <i className="fas fa-shopping-basket"></i>
+          <span>Orders</span>
+          {farmerOrders.length > 0 && (
+            <span className="notification-badge">{farmerOrders.length}</span>
+          )}
+        </button>
+      </nav>
     </div>
   );
 };
