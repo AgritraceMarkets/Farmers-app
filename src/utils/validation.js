@@ -11,10 +11,10 @@ export const validatePhone = (phone) => {
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '');
   
-  // Check if it's a valid phone number (9-12 digits)
+  // Check if it's a valid phone number (10-12 digits)
   // This handles formats like:
   // 0712345678, +254712345678, 254712345678, 07-1234-5678
-  return digits.length >= 9 && digits.length <= 12;
+  return digits.length >= 10 && digits.length <= 12;
 };
 
 // Password validation - at least 6 characters
@@ -91,7 +91,7 @@ export const getErrorMessage = (field, errorType) => {
     },
     phone: {
       required: 'Phone number is required',
-      invalid: 'Please enter a valid phone number (9-12 digits)'
+      invalid: 'Please enter a valid phone number (10-12 digits)'
     },
     password: {
       required: 'Password is required',

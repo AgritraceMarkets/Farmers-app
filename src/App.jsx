@@ -4,7 +4,6 @@ import api from './services/api';
 import authService from './services/auth';
 import LoadingSpinner from './components/LoadingSpinner';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
-import notificationService from './services/notificationService';
 import { 
   validateEmail, 
   validatePhone, 
@@ -38,9 +37,6 @@ const App = () => {
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
-// Notification state
-const [notificationPermission, setNotificationPermission] = useState(false);
-const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   // Data state
   const [cropTypes, setCropTypes] = useState([]);
   const [plantings, setPlantings] = useState([]);
@@ -86,7 +82,28 @@ const [showNotificationBanner, setShowNotificationBanner] = useState(false);
       fetchInitialData();
     }
   }, []);
-
+// Auto-refresh dashboard every 60 seconds to keep days_remaining accurate
+useEffect(() => {
+  let interval;
+  
+  if (isLoggedIn) {
+    // Refresh every 60 seconds (60000 milliseconds)
+    interval = setInterval(() => {
+      console.log('Auto-refreshing dashboard data...');
+      fetchDashboardSummary();
+      fetchMyPlantings();
+      fetchMarketplaceListings();
+    }, 60000);
+  }
+  
+  // Clean up interval when user logs out or component unmounts
+  return () => {
+    if (interval) {
+      clearInterval(interval);
+      console.log('Auto-refresh stopped');
+    }
+  };
+}, [isLoggedIn]); // Only runs when isLoggedIn changes
   // Load Google Maps script
   useEffect(() => {
     if (isLoggedIn && !window.google) {
@@ -100,28 +117,6 @@ const [showNotificationBanner, setShowNotificationBanner] = useState(false);
       initializeMap();
     }
   }, [isLoggedIn]);
-// Request notification permission when logged in
-useEffect(() => {
-  if (isLoggedIn) {
-    // Check current permission status
-    const currentPermission = notificationService.getPermissionStatus();
-    setNotificationPermission(currentPermission === 'granted');
-    
-    // Only show banner if not granted and not denied
-    if (currentPermission === 'default') {
-      setShowNotificationBanner(true);
-    }
-  }
-}, [isLoggedIn]);
-
-// Check for upcoming events and send notifications
-useEffect(() => {
-  if (isLoggedIn && dashboardSummary?.upcoming_events?.length > 0 && notificationPermission) {
-    console.log('Checking for upcoming events...', dashboardSummary.upcoming_events);
-    notificationService.checkUpcomingEvents(dashboardSummary.upcoming_events);
-    notificationService.clearOldNotifications();
-  }
-}, [dashboardSummary, notificationPermission, isLoggedIn]);
   // Validation functions
   const validateRegistrationField = (name, value) => {
     switch (name) {
@@ -631,23 +626,6 @@ useEffect(() => {
             <button onClick={() => setError(null)}>×</button>
           </div>
         )}
-{/* Notification Permission Banner */}
-{showNotificationBanner && !notificationPermission && (
-  <div className="notification-banner">
-    <i className="fas fa-bell"></i>
-    <div className="notification-banner-content">
-      <h4>Get Task Reminders</h4>
-      <p>Enable notifications to never miss a farming task</p>
-    </div>
-    <button onClick={async () => {
-      const granted = await notificationService.requestPermission();
-      setNotificationPermission(granted);
-      setShowNotificationBanner(false);
-    }}>
-      Enable
-    </button>
-  </div>
-)}
         <div className="auth-card animate-fadeIn">
           <div className="auth-header">
             <h1>🌾 AgriTrace Market</h1>
@@ -846,13 +824,6 @@ useEffect(() => {
   <button className="icon-btn" onClick={() => togglePanel('marketplace')}>
     <i className="fas fa-store"></i>
   </button>
-  {/* NEW: Notification Settings Button */}
-  <button className="icon-btn" onClick={() => togglePanel('notifications')}>
-    <i className={`fas fa-bell ${notificationPermission ? 'active-bell' : ''}`}></i>
-    {dashboardSummary?.upcoming_events?.length > 0 && notificationPermission && (
-      <span className="notification-badge">{dashboardSummary.upcoming_events.length}</span>
-    )}
-  </button>
   <button className="icon-btn logout" onClick={handleLogout}>
     <i className="fas fa-sign-out-alt"></i>
   </button>
@@ -1045,100 +1016,7 @@ useEffect(() => {
           <p>Loading profile...</p>
         </div>
       </div>
-    )}{activePanel === 'notifications' && (
-  <div className="notifications-panel">
-    <h3><i className="fas fa-bell"></i> Notification Settings</h3>
-    
-    <div className="notification-status">
-      <div className="status-icon">
-        {notificationPermission ? (
-          <i className="fas fa-check-circle" style={{ color: '#388e3c', fontSize: '2rem' }}></i>
-        ) : (
-          <i className="fas fa-bell-slash" style={{ color: '#d32f2f', fontSize: '2rem' }}></i>
-        )}
-      </div>
-      <div className="status-text">
-        <h4>
-          {notificationPermission ? 'Notifications Enabled' : 'Notifications Disabled'}
-        </h4>
-        <p>
-          {notificationPermission 
-            ? 'You will receive reminders for upcoming farming tasks' 
-            : 'Enable notifications to get reminders about your crops'}
-        </p>
-      </div>
-    </div>
-    
-    {!notificationPermission && (
-      <div className="notification-prompt">
-        <div className="benefits-list">
-          <h4>With notifications you'll get:</h4>
-          <ul>
-            <li><i className="fas fa-check-circle"></i> Upcoming farming tasks</li>
-            <li><i className="fas fa-check-circle"></i> Fertilizer application dates</li>
-            <li><i className="fas fa-check-circle"></i> Harvest reminders</li>
-            <li><i className="fas fa-check-circle"></i> Weather alerts</li>
-          </ul>
-        </div>
-        <button 
-          className="btn-primary btn-block"
-          onClick={async () => {
-            const granted = await notificationService.requestPermission();
-            setNotificationPermission(granted);
-            if (granted) {
-              setShowNotificationBanner(false);
-              // Refresh to show updated status
-              setActivePanel('profile');
-              setTimeout(() => setActivePanel('notifications'), 100);
-            }
-          }}
-        >
-          <i className="fas fa-bell"></i> Enable Notifications
-        </button>
-      </div>
     )}
-    
-    {notificationPermission && (
-      <>
-        <div className="upcoming-events-preview">
-          <h4><i className="fas fa-calendar-alt"></i> Upcoming Events</h4>
-          {dashboardSummary?.upcoming_events?.length > 0 ? (
-            <div className="events-list">
-              {dashboardSummary.upcoming_events.map((event, idx) => (
-                <div key={idx} className="event-item">
-                  <div className="event-urgency">
-                    {event.days_remaining <= 1 ? '🔴' : event.days_remaining <= 2 ? '🟡' : '🟢'}
-                  </div>
-                  <div className="event-details">
-                    <strong>{event.stage_name}</strong>
-                    <span>{event.crop_name}</span>
-                    <small>{event.days_remaining} days remaining</small>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="no-events">No upcoming events scheduled</p>
-          )}
-        </div>
-        
-        <div className="test-notification-section">
-          <button 
-            className="btn-secondary btn-block"
-            onClick={() => {
-              const success = notificationService.testNotification();
-              if (!success && !notificationPermission) {
-                alert('Please enable notifications first');
-              }
-            }}
-          >
-            <i className="fas fa-flask"></i> Send Test Notification
-          </button>
-        </div>
-      </>
-    )}
-  </div>
-)}
           {/* ===== UPDATED: Register Planting Panel with Both Location Options ===== */}
           {activePanel === 'register' && (
             <div className="register-panel">
