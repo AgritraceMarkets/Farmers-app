@@ -1483,6 +1483,10 @@
     width: 100%;
   }
 
+  .main-header .header-actions {
+    display: none;
+  }
+
   .bottom-nav {
     display: flex;
     position: fixed;

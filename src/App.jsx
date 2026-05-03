@@ -1001,6 +1001,8 @@ useEffect(() => {
                         <p><strong>Crop:</strong> {order.crop_name}</p>
                         <p><strong>Quantity:</strong> {order.quantity_ordered_kg} kg</p>
                         <p><strong>Total Price:</strong> kSh {order.total_price}</p>
+                        <p><strong>Harvest Date:</strong> {new Date(order.expected_harvest_date).toLocaleDateString()}</p>
+                        <p><strong>Farm Region:</strong> {order.region_name}</p>
                         <hr />
                         <p><strong>Customer:</strong> {order.buyer_name}</p>
                         <p><strong>Phone:</strong> {order.buyer_phone}</p>
