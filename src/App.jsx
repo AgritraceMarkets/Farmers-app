@@ -813,6 +813,10 @@ useEffect(() => {
                 <span className="notification-badge">{farmerOrders.length}</span>
               )}
             </button>
+            <button className="icon-btn-text help-btn" onClick={() => togglePanel('help')}>
+              <i className="fas fa-question-circle"></i>
+              <span>Help</span>
+            </button>
             <button className="icon-btn logout" onClick={handleLogout} title="Logout">
               <i className="fas fa-sign-out-alt"></i>
             </button>
@@ -972,6 +976,7 @@ useEffect(() => {
             {activePanel === 'calendar' && <><i className="fas fa-calendar"></i> Growth Calendar</>}
             {activePanel === 'marketplace' && <><i className="fas fa-store"></i> Marketplace</>}
             {activePanel === 'orders' && <><i className="fas fa-shopping-basket"></i> Received Orders</>}
+            {activePanel === 'help' && <><i className="fas fa-question-circle"></i> Help & Support</>}
           </h2>
           <button className="close-btn" onClick={closePanel}>
             <i className="fas fa-times"></i>
@@ -1012,6 +1017,57 @@ useEffect(() => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activePanel === 'help' && (
+            <div className="help-panel">
+              <div className="help-section">
+                <h3><i className="fas fa-rocket"></i> Getting Started</h3>
+                <div className="help-item">
+                  <h4>How do I add a new crop?</h4>
+                  <p>Click the <strong>"+" (New Planting)</strong> button in the top menu. Select your crop, enter the land size in acres, and select your farm location using the Google Map.</p>
+                </div>
+              </div>
+
+              <div className="help-section">
+                <h3><i className="fas fa-seedling"></i> Farming Lifecycle</h3>
+                <div className="help-item">
+                  <h4>How is harvest date projected?</h4>
+                  <p>Our system uses the standard maturity days for each crop. Once you enter the planting date, we automatically calculate the expected harvest date.</p>
+                </div>
+                <div className="help-item">
+                  <h4>What do the statuses mean?</h4>
+                  <ul>
+                    <li><strong>Planted:</strong> The crop is in the ground.</li>
+                    <li><strong>Growing:</strong> The crop is developing (Automatic).</li>
+                    <li><strong>Harvested:</strong> The crop is ready for delivery.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="help-section">
+                <h3><i className="fas fa-wallet"></i> Payments & Escrow</h3>
+                <div className="help-item">
+                  <h4>How do I get paid?</h4>
+                  <p>When a buyer purchases your crop, the money is held in a <strong>Secure Escrow</strong>. Once the buyer receives the goods and clicks "Confirm Delivery", the funds are instantly sent to your M-Pesa number.</p>
+                </div>
+                <div className="help-item">
+                  <h4>Steps to complete a sale:</h4>
+                  <ol>
+                    <li>Buyer places an order and pays.</li>
+                    <li>You receive an "Order Received" notification.</li>
+                    <li>Deliver the produce to the buyer.</li>
+                    <li>Buyer confirms delivery on their app.</li>
+                    <li>Funds are released to you.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="help-section contact-support">
+                <p>Need more help? Contact our field agents:</p>
+                <a href="tel:0800123456" className="support-link"><i className="fas fa-phone"></i> 0800 123 456</a>
+              </div>
             </div>
           )}
          {activePanel === 'profile' && user && (
